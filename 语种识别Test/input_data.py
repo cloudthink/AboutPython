@@ -7,8 +7,8 @@ from sklearn.model_selection import train_test_split
 import os
 import pylab
 
-SEED = 2019
 frame_length =50
+mfcc_length =30
 lab_dict={'Japanese':0,'Afrikaans':1,'Sesotho':2}
 catchDirPath = 'D:\\DataSet\\Catch'
 
@@ -51,7 +51,7 @@ class DataSet(object):
         #pylab.show()#显示音频原始图谱
 
         #frames = librosa.util.frame(wave,frame_length=len(wave)//1024,hop_length=1024)#.transpose()转置
-        mfccTot = librosa.feature.mfcc(wave,sr,n_mfcc=30).transpose()#转置，每一行一帧
+        mfccTot = librosa.feature.mfcc(wave,sr,n_mfcc=mfcc_length).transpose()#转置，每一行一帧
 
         #pylab.plot(mfccTot.flatten())
         #pylab.title('frame')
