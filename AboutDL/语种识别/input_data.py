@@ -9,7 +9,9 @@ import pylab
 
 frame_length =50
 mfcc_length =30
-lab_dict={'Japanese':0,'Afrikaans':1,'Sesotho':2}
+lab_dict={'Japanese':0,'Afrikaans':1,'Sesotho':2}#标签数字化字典
+rev_lab_dict={0:'Japanese',1:'Afrikaans',2:'Sesotho'}#反义字典，用于查看真实标签
+rev_ten = np.array([0,1,2])#转义向量：用于将独热化的标签转换为字典数字
 catchDirPath = 'D:\\DataSet\\Catch'
 
 class DataSet(object):
@@ -52,12 +54,6 @@ class DataSet(object):
 
         #frames = librosa.util.frame(wave,frame_length=len(wave)//1024,hop_length=1024)#.transpose()转置
         mfccTot = librosa.feature.mfcc(wave,sr,n_mfcc=mfcc_length).transpose()#转置，每一行一帧
-
-        #pylab.plot(mfccTot.flatten())
-        #pylab.title('frame')
-        #pylab.grid()
-        #pylab.axis([0,len(mfccTot),-800,800])
-        #pylab.show()#显示音频MFCC图谱
 
         for i in range(len(mfccTot)):
           if i % frame_length==0 and i>0:
