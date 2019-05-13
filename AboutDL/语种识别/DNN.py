@@ -3,6 +3,10 @@ import numpy as np
 import tensorflow as tf
 import input_data
 import os
+import sys
+root_path = os.path.abspath("../")
+if root_path not in sys.path:
+    sys.path.append(root_path)
 from rbm import RBM
 from YZSB import FixNN
 
@@ -100,8 +104,17 @@ class DNN(object):
         val_acc = self.sess.run(self.accuracy, feed_dict={self.x: trainSet.test.wavs,self.y: trainSet.test.labels})
         print("\tDNN测试精度: {0}".format(val_acc))
 
+    #x,y都需要是对应数据的列表
     def predect(self,x,y=None):
-        y_pred = self.sess.run(self.y_pred,feed_dict={self.x:[x]})
+        for i,eachX in enumerate(x):
+            if y is not None:
+                eachY = y[i]
+            else:
+                eachY = None
+            self._predect([eachX],eachY)
+
+    def _predect(self,x,y=None):
+        y_pred = self.sess.run(self.y_pred,feed_dict={self.x:x})
         print("预测标签："+input_data.rev_lab_dict[y_pred[0]])
         if y is not None:
             print("真实标签：{}".format(input_data.rev_lab_dict[np.dot(np.array(y),input_data.rev_ten)]))
@@ -130,17 +143,28 @@ class DNN(object):
         saver = tf.train.Saver()
         saver.save(sess, folder)
         print("保存完成")
+
+    #可视化日志路径：命令行tensorboard --logdir=D:\tmp\tbLogs --host=127.0.0.1
+    def prepare_tensorboard_verbose(self):
+        try:
+            tb_log_folder = os.path.join(os.path.sep, "tmp", "tbLogs",
+                str(datetime.datetime.now())[:19].replace(":", "-"))
+            train_dir = os.path.join(tb_log_folder, "train")
+            tf.summary.merge_all()
+            tf.summary.FileWriter(train_dir, self.sess.graph)
+        except:
+            print('模型可视化保存异常')
         
 
 #通过命令行模式启动时执行
 if __name__ == "__main__":
     data = input_data.read_data_sets("D:\\DataSet\\")
     dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=3, hidden_layers_sizes=[2048, 2048, 50, 2048, 2048])
-    modelName = 'yzsb500'#保存和加载模型的名字
+    modelName = 'yzsb700'#保存和加载模型的名字
     if os.path.exists(os.path.join('D:\\YZSB',modelName,"Model.ckpt.meta")):
         dnn.load(modelName=modelName)
         dnn.TestAcc(trainSet=data)
-        dnn.predect(data.test.wavs[0],data.test.labels[0])
+        dnn.predect(data.test.wavs[:10],data.test.labels[:10])
     else:
         init = tf.global_variables_initializer()
         dnn.sess.run(init)

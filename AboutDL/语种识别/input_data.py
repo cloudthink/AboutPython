@@ -26,11 +26,13 @@ class DataSet(object):
         self._labels = y
         self._num_examples = len(self._wavs)
 
-  def read(self, wavs):
+  def read(self, wavs=None,fileNum = None):
     x , y , sx , sy = [],[],[],[]
     if not os.path.exists(catchDirPath):#因为加载文件过慢，所以只在第一次进行原始文件读取，之后都读取缓存文件
       os.makedirs(catchDirPath)
-    if not os.path.exists(os.path.join(catchDirPath, str(len(wavs))+"x.npy")):
+    if fileNum is None:
+      fileNum = str(len(wavs))
+    if not os.path.exists(os.path.join(catchDirPath, fileNum+"x.npy")):
       for i,wav in enumerate(wavs):
         print("正在读取第 {} 个文件".format(i))
         wave,sr = librosa.load(wav,sr=None,mono = True)
@@ -55,6 +57,12 @@ class DataSet(object):
         #frames = librosa.util.frame(wave,frame_length=len(wave)//1024,hop_length=1024)#.transpose()转置
         mfccTot = librosa.feature.mfcc(wave,sr,n_mfcc=mfcc_length).transpose()#转置，每一行一帧
 
+        #pylab.plot(mfccTot.flatten())
+        #pylab.title('frame')
+        #pylab.grid()
+        #pylab.axis([0,len(mfccTot),-800,800])
+        #pylab.show()#显示音频MFCC图谱
+
         for i in range(len(mfccTot)):
           if i % frame_length==0 and i>0:
             if i == frame_length:
@@ -67,15 +75,15 @@ class DataSet(object):
           y.append(label)
       x[:] -= np.mean(x,axis=0)
       x[:] /= np.var(x)
-      np.save(os.path.join(catchDirPath, str(len(wavs))+"x{}.npy".format('Source')),sx)
-      np.save(os.path.join(catchDirPath, str(len(wavs))+"y{}.npy".format('Source')),sy)
-      np.save(os.path.join(catchDirPath, str(len(wavs))+"x.npy"),x)
-      np.save(os.path.join(catchDirPath, str(len(wavs))+"y.npy"),y)
+      np.save(os.path.join(catchDirPath, fileNum+"x{}.npy".format('Source')),sx)
+      np.save(os.path.join(catchDirPath, fileNum+"y{}.npy".format('Source')),sy)
+      np.save(os.path.join(catchDirPath, fileNum+"x.npy"),x)
+      np.save(os.path.join(catchDirPath, fileNum+"y.npy"),y)
     else:
-      x = np.load(os.path.join(catchDirPath, str(len(wavs))+"x.npy"))
-      y = np.load(os.path.join(catchDirPath, str(len(wavs))+"y.npy"))
-      sx = np.load(os.path.join(catchDirPath, str(len(wavs))+"x{}.npy".format('Source')))
-      sy = np.load(os.path.join(catchDirPath, str(len(wavs))+"y{}.npy".format('Source')))
+      x = np.load(os.path.join(catchDirPath, fileNum+"x.npy"))
+      y = np.load(os.path.join(catchDirPath, fileNum+"y.npy"))
+      sx = np.load(os.path.join(catchDirPath, fileNum+"x{}.npy".format('Source')))
+      sy = np.load(os.path.join(catchDirPath, fileNum+"y{}.npy".format('Source')))
     self._wavs = x
     self.x = sx
     self.y = sy
@@ -120,7 +128,8 @@ def read_data_sets(train_dir, one_hot=False):
     start_time = timeit.default_timer()
     print("#文件数量：{}\n开始读取音频文件特征...".format(len(files)))
     ds = DataSet()
-    ds.read(files)
+    #ds.read(files)
+    ds.read(fileNum='7887')#当明确知道已经有缓存文件存在时可以直接用对应数目去加载缓存文件，可以删掉脱离原文件
     index = random.sample(range(len(ds.wavs)),len(ds.wavs))#全样本下标打乱
     print('总样本数量：{}'.format(len(index)))
     V_SIZE = int(len(index)*0.9)#验证集取数据集的0.1
