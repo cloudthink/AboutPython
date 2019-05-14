@@ -4,6 +4,7 @@ import tensorflow as tf
 import input_data
 import os
 import sys
+import datetime
 root_path = os.path.abspath("../")
 if root_path not in sys.path:
     sys.path.append(root_path)
@@ -70,7 +71,7 @@ class DNN(object):
         print("\n预训练进程用时 {0} 分钟".format((end_time - start_time) / 60))
     
     #训练拟合神经网络
-    def finetuning(self, trainSet,sess=None,training_epochs=500, batch_size=100, lr=0.1,display_step=1):
+    def finetuning(self, trainSet,sess=None,training_epochs=500, batch_size=100, lr=0.1,display_step=1,med_epochs=400):
         if sess is None:
             sess = self.sess
         print("\nDNN训练...\n")
@@ -78,7 +79,26 @@ class DNN(object):
         train_op = tf.train.GradientDescentOptimizer(learning_rate=lr).minimize(self.loss)
         epoch = 1
         maxAcc = 0
-        while epoch <= training_epochs:
+        while epoch <= training_epochs and epoch<=med_epochs:
+            avg_loss = 0.0
+            batch_num = int(trainSet.train.num_examples / batch_size)
+            for _ in range(batch_num):
+                x_batch, y_batch = trainSet.train.next_batch(batch_size)
+                # 训练
+                sess.run(train_op, feed_dict={self.x: x_batch, self.y: y_batch})
+                avg_loss += sess.run(self.loss, feed_dict= {self.x: x_batch, self.y: y_batch}) / batch_num
+            if epoch % display_step == 0:
+                val_acc = sess.run(self.accuracy, feed_dict={self.x: trainSet.validation.wavs,self.y: trainSet.validation.labels})
+                maxAcc = val_acc if val_acc > maxAcc else maxAcc
+                print("\t训练步数 {0} 校验精度确认: {1} 损失值:{2}".format(epoch, val_acc,avg_loss))
+            if epoch == training_epochs:
+                conFlag = input('达到最大训练步数，是否增加步数继续训练？Yes/No：')
+                if conFlag == 'Yes':
+                    training_epochs += int(input('请输入延长的步数（整数）：'))
+            epoch += 1
+        while epoch>med_epochs and epoch <= training_epochs:
+            if epoch % 10 == 1:#在特定的med_epochs步数之后进入手动学习率衰减训练，每10步一减
+                train_op = tf.train.GradientDescentOptimizer(learning_rate=lr-0.0001*(epoch-med_epochs)).minimize(self.loss)
             avg_loss = 0.0
             batch_num = int(trainSet.train.num_examples / batch_size)
             for _ in range(batch_num):
@@ -158,9 +178,9 @@ class DNN(object):
 
 #通过命令行模式启动时执行
 if __name__ == "__main__":
-    data = input_data.read_data_sets("D:\\DataSet\\")
+    data = input_data.read_data_sets("C:\\DataSet\\")
     dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=3, hidden_layers_sizes=[2048, 2048, 50, 2048, 2048])
-    modelName = 'yzsb700'#保存和加载模型的名字
+    modelName = '4yzsb800'#保存和加载模型的名字
     if os.path.exists(os.path.join('D:\\YZSB',modelName,"Model.ckpt.meta")):
         dnn.load(modelName=modelName)
         dnn.TestAcc(trainSet=data)
