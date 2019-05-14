@@ -142,9 +142,9 @@ class RBM(object):
         activation_v = self.propdown(activation_h)
         # 这一步是为了避免Nan(使下界clip_value_min=1e-30);
         # tf.clip_by_value(A, min, max)：输入一个张量A，把A中的每一个元素的值都压缩在min和max之间。小于min的让它等于min，大于max的元素的值等于max。
-        activation_v_clip = tf.clip_by_value(activation_v, clip_value_min=1e-30, clip_value_max=10.0)
+        activation_v_clip = tf.clip_by_value(activation_v, clip_value_min=1e-30, clip_value_max=1.0)
         # 计算1.0 - activation_v;
-        reduce_activation_v_clip = tf.clip_by_value(1.0 - activation_v, clip_value_min=1e-30, clip_value_max=10.0)
+        reduce_activation_v_clip = tf.clip_by_value(1.0 - activation_v, clip_value_min=1e-30, clip_value_max=1.0)
         # 计算cross_entropy;
         cross_entropy = -tf.reduce_mean(tf.reduce_sum(self.input*(tf.log(activation_v_clip)) + 
                                     (1.0 - self.input)*(tf.log(reduce_activation_v_clip)), axis=1))

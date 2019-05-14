@@ -34,10 +34,12 @@ class DNN(object):
             #sum_W = tf.matmul(layer_input, W) + b
             sum_W = tf.add(tf.matmul(layer_input, W), b, name="HiddenLayer{}".format(i))
             t_layer_input = tf.nn.sigmoid(sum_W)
-            if i > 0 and hidden_layers_sizes[i-1] > hidden_layers_sizes[i]:
-                self.DBF = t_layer_input
+            #if i > 0 and hidden_layers_sizes[i-1] > hidden_layers_sizes[i]:
+            #    self.DBF = t_layer_input
             # 创建RBM层
             self.rbm_layers.append(RBM(inpt=layer_input, n_visiable=input_size, n_hidden=hidden_layers_sizes[i],W=W, hbias=b))
+            if i > 0 and hidden_layers_sizes[i-1] > hidden_layers_sizes[i]:
+                self.DBF = self.rbm_layers[i].input
             layer_input = t_layer_input
 
         W = tf.Variable(tf.zeros([hidden_layers_sizes[-1], n_out], dtype=tf.float32))
@@ -167,7 +169,7 @@ class DNN(object):
     #可视化日志路径：命令行tensorboard --logdir=D:\tmp\tbLogs --host=127.0.0.1
     def prepare_tensorboard_verbose(self):
         try:
-            tb_log_folder = os.path.join(os.path.sep, "tmp", "tbLogs",
+            tb_log_folder = os.path.join(os.path.sep, "D;\\tmp", "tbLogs",
                 str(datetime.datetime.now())[:19].replace(":", "-"))
             train_dir = os.path.join(tb_log_folder, "train")
             tf.summary.merge_all()
@@ -179,12 +181,13 @@ class DNN(object):
 #通过命令行模式启动时执行
 if __name__ == "__main__":
     data = input_data.read_data_sets("C:\\DataSet\\")
-    dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=3, hidden_layers_sizes=[2048, 2048, 50, 2048, 2048])
+    dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=4, hidden_layers_sizes=[2048, 2048, 50, 2048, 2048])
     modelName = '4yzsb800'#保存和加载模型的名字
     if os.path.exists(os.path.join('D:\\YZSB',modelName,"Model.ckpt.meta")):
         dnn.load(modelName=modelName)
         dnn.TestAcc(trainSet=data)
         dnn.predect(data.test.wavs[:10],data.test.labels[:10])
+        dnn.prepare_tensorboard_verbose()
     else:
         init = tf.global_variables_initializer()
         dnn.sess.run(init)
