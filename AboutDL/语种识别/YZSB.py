@@ -1,112 +1,71 @@
-import glob
 import numpy as np
 import random
-import librosa
 import input_data
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import keras
-from keras.layers import LSTM,Dense,Dropout,Flatten,Conv2D,Activation,MaxPooling2D
-#from keras.utils import np_utils
-from keras.models import Sequential
-from keras.optimizers import Adam
+from keras.layers import Dense,Dropout,Activation#,Flatten,Conv2D,LSTM,MaxPooling2D
+from keras.models import Sequential,Model,Input
 from keras.callbacks import EarlyStopping,ModelCheckpoint,TensorBoard
 
+modelName = 'DNN4yzsb.h5'
 class FixNN(object):
-    def __init__(self,learning_rate = 0.01,batch_size=64,n_epochs = 1000,dropout = 0.5):
-        self.lab_dict={'Japanese':0,'Afrikaans':1,'Sesotho':2}
+    def __init__(self,shape = 1500,learning_rate = 0.1,batch_size=128,n_epochs = 1000,dropout = 0.5):
+        self.lab_dict = input_data.lab_dict
         self.lr = learning_rate
-        self.batch_size=batch_size
+        self.batch_size = batch_size
         self.n_epochs = n_epochs
         self.dropout=dropout
+        inputs = Input(shape=(shape,))
+        H1 = Dense(1024,activation='relu')(inputs)
+        H2 = Dense(512,activation='relu')(inputs)
+        H3 = Dense(256,activation='relu')(H2)
+        H4 = Dense(len(input_data.lab_dict),activation='relu')(H3)
+        H5 = Dense(256,activation='relu')(H4)
+        H6 = Dense(512,activation='relu')(H5)
+        H7 = Dense(1024,activation='relu')(H6)
+        outputs = Dense(shape,activation='sigmoid')(H6)
+        self.Classifer = Model(input = inputs,output=H4)
+        opt = keras.optimizers.Adam()
+        self.Classifer.compile(loss=keras.losses.mean_squared_error,optimizer=opt,metrics=['accuracy'])
 
     def fit(self,x,y,xt,yt):
-        x = x.reshape(len(x),input_data.frame_length,input_data.mfcc_length)
-        #y = np_utils.to_categorical(y,3)#已经独热表示不需要这个，如果未独热可以通过这个独热化
-        input_shape = x.shape[1:]
-        model = Sequential() 
-        model.add(LSTM(500,return_sequences=True,input_shape=input_shape,dropout=self.dropout))
-        model.add(LSTM(500,return_sequences=True,input_shape=input_shape,dropout=self.dropout))
-        model.add(Flatten())
-        model.add(Dense(1024,activation = 'relu'))
-        model.add(Dense(1024,activation = 'relu'))
-        model.add(Dense(1024,activation = 'relu'))
-        model.add(Dropout(self.dropout))
-        model.add(Dense(3,activation='softmax'))
-        opt = Adam(lr=self.lr)
-        model.compile(loss=keras.losses.mean_squared_error,optimizer=opt,metrics=['accuracy'])
-        model.build()
-        checkpointer = ModelCheckpoint(filepath="yzsb.h5", save_best_only=True)
-        #tensbrd = TensorBoard(log_dir='./tmp/tbLog')
+        checkpointer = ModelCheckpoint(filepath=modelName, save_best_only=True)
+        tensbrd = TensorBoard(log_dir='./tmp/tbLog')
         eStop = EarlyStopping()#损失函数不再减小后十轮停止训练
         callback = [checkpointer,eStop]
-        history = model.fit(x,y,validation_split=0.2,epochs=200,batch_size =self.batch_size,verbose=1,callbacks=callback)
-        print(history)
+        
+        history = self.Classifer.fit(x,y,epochs=self.n_epochs,batch_size=self.batch_size,validation_split=0.2,callbacks=callback)
+        self.TestAcc(xt,yt)
 
         plt.plot(np.arange(len(history.history['acc'])),history.history['acc'],label='训练集')
         plt.plot(np.arange(len(history.history['val_acc'])),history.history['val_acc'],label='验证集')
         plt.title('Accuracy')
-        plt.xlabel('训练步数')
-        plt.ylabel('精度')
+        plt.xlabel('Epcho')
+        plt.ylabel('ACC')
         plt.legend(loc=0)
         plt.show()
 
-        loss,acc = model.evaluate(xt,yt)
+    def load(self):
+        self.Classifer = keras.models.load_model(modelName)
+
+    def TestAcc(self,xt,yt):
+        loss,acc = self.Classifer.evaluate(xt,yt)
         print("模型验证集损失值: %f 精确度: %f"%(loss,acc))
-        #result = model.predict(xt,batch_size=self.batch_size,verbose=2)
 
-    def CNNfit(self,x,xc,y,yc,xt,yt):
-        x= np.concatenate((x,xc))
-        y= np.concatenate((y,yc))
-        x = x.reshape(len(x),30,43,1)
-        xt = xt.reshape(len(xt),30,43,1)
-        model = Sequential()
-        model.add(Conv2D(50, (3, 3), padding='same', input_shape=x.shape[1:]))
-        model.add(Activation('relu'))
-
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Dropout(0.25))
-
-        model.add(Conv2D(60, (3, 3), padding='same', input_shape=x.shape[1:]))
-        model.add(Activation('relu'))
-
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Dropout(0.25))
-
-        model.add(Conv2D(70, (3, 3), padding='same'))
-        model.add(Activation('relu'))
-
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Dropout(0.25))
-
-        model.add(Flatten())
-
-        model.add(Dense(256,activation = 'relu'))
-        model.add(Dropout(0.5))
-
-        model.add(Dense(3,activation = 'softmax'))
-        #model.summary()
-
-        opt = keras.optimizers.rmsprop(lr=0.05, decay=1e-5)
-        model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
-
-        history = model.fit(x,y,validation_split=0.2,epochs=500,batch_size =self.batch_size,verbose=1,shuffle=True)
-
-        plt.plot(np.arange(len(history.history['acc'])),history.history['acc'],label='训练集')
-        plt.plot(np.arange(len(history.history['val_acc'])),history.history['val_acc'],label='验证集')
-        plt.title('Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('acc')
-        plt.legend(loc=0)
-        plt.show()
-
-        loss,acc = model.evaluate(xt,yt)
-        print("损失值: %f 精确度: %f"%(loss,acc))
+    def predict(self,x,y):
+        pred = np.argmax(self.Classifer.predict(x), axis=1)
+        for i,p in enumerate(pred):
+            print("预测标签：{}".format(input_data.rev_lab_dict[p]))
+            print("真实标签：{}\n".format(input_data.rev_lab_dict[np.dot(np.array(y[i]),input_data.rev_ten)]))
 
 if __name__ == "__main__":
-    data = input_data.read_data_sets("D:\\DataSet\\", one_hot=True)
+    data = input_data.read_data_sets("C:\\DataSet\\")
     nn = FixNN()
-    #nn.CNNfit(data.train3.wavs,data.validation3.wavs,data.train3.labels,data.validation3.labels,data.test3.wavs,data.test3.labels)
     x = np.concatenate((data.train.wavs,data.validation.wavs),axis=0)
     y = np.concatenate((data.train.labels, data.validation.labels),axis=0)
-    nn.fit(x,y,data.test.wavs,data.test.labels)
+    nn.fit(x,y,data.test.wavs,data.test.labels)#训练时自动保存
+    #nn.load()#训练过后直接加载,其实这个模型训练速度极快，实验时每次都训练不用加载也可以
+    #nn.TestAcc(data.test.wavs,data.test.labels)
+    nn.predict(data.test.wavs[:10],data.test.labels[:10])
+    a=input('训练结束')
