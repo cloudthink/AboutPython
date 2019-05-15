@@ -10,7 +10,7 @@ from keras.callbacks import EarlyStopping,ModelCheckpoint,TensorBoard
 
 modelName = 'DNN4yzsb.h5'
 class FixNN(object):
-    def __init__(self,shape = 1500,learning_rate = 0.1,batch_size=128,n_epochs = 1000,dropout = 0.5):
+    def __init__(self,shape = input_data.mfcc_length*input_data.frame_length,learning_rate = 0.0001,batch_size=128,n_epochs = 100,dropout = 0.5):
         self.lab_dict = input_data.lab_dict
         self.lr = learning_rate
         self.batch_size = batch_size
@@ -26,20 +26,20 @@ class FixNN(object):
         H7 = Dense(1024,activation='relu')(H6)
         outputs = Dense(shape,activation='sigmoid')(H6)
         self.Classifer = Model(input = inputs,output=H4)
-        opt = keras.optimizers.Adam()
+        opt = keras.optimizers.Adam(lr = learning_rate)
         self.Classifer.compile(loss=keras.losses.mean_squared_error,optimizer=opt,metrics=['accuracy'])
 
     def fit(self,x,y,xt,yt):
         checkpointer = ModelCheckpoint(filepath=modelName, save_best_only=True)
         tensbrd = TensorBoard(log_dir='./tmp/tbLog')
         eStop = EarlyStopping()#损失函数不再减小后十轮停止训练
-        callback = [checkpointer,eStop]
+        callback = [checkpointer]
         
         history = self.Classifer.fit(x,y,epochs=self.n_epochs,batch_size=self.batch_size,validation_split=0.2,callbacks=callback)
         self.TestAcc(xt,yt)
 
-        plt.plot(np.arange(len(history.history['acc'])),history.history['acc'],label='训练集')
-        plt.plot(np.arange(len(history.history['val_acc'])),history.history['val_acc'],label='验证集')
+        plt.plot(np.arange(len(history.history['acc'])),history.history['acc'],label='Train')
+        plt.plot(np.arange(len(history.history['val_acc'])),history.history['val_acc'],label='CV')
         plt.title('Accuracy')
         plt.xlabel('Epcho')
         plt.ylabel('ACC')

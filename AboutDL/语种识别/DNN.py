@@ -159,7 +159,7 @@ class DNN(object):
         saver.save(self.sess, folder)
         print("保存完成")
 
-    #可视化日志路径：命令行tensorboard --logdir=D:\tmp\tbLogs --host=127.0.0.1
+    #可视化日志路径：命令行tensorboard --logdir=D:\YZSB\tmp\tbLogs --host=127.0.0.1
     def prepare_tensorboard_verbose(self):
         try:
             tb_log_folder = os.path.join(os.path.sep, "D:\\YZSB\\tmp", "tbLogs",
@@ -174,23 +174,23 @@ class DNN(object):
 #通过命令行模式启动时执行
 if __name__ == "__main__":
     data = input_data.read_data_sets("C:\\DataSet\\")
-    dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=len(input_data.lab_dict), hidden_layers_sizes=[2048, 2048, 50, 2048, 2048])
-    modelName = '4yzsb600'#保存和加载模型的名字
+    dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=len(input_data.lab_dict), hidden_layers_sizes=[2048, 2048, 100, 2048, 2048])
+    modelName = '4-100yzsb600'#保存和加载模型的名字
     if os.path.exists(os.path.join('D:\\YZSB',modelName,"Model.ckpt.meta")):
         dnn.load(modelName=modelName)
         dnn.TestAcc(trainSet=data)
         #dnn.predect(data.test.wavs[:10],data.test.labels[:10])
-        dnn.prepare_tensorboard_verbose()
+        #dnn.prepare_tensorboard_verbose()
     else:
         init = tf.global_variables_initializer()
         dnn.sess.run(init)
         tf.set_random_seed(seed=2019)
         dnn.pretrain(X_train=data)
-        dnn.finetuning(trainSet=data)
+        dnn.finetuning(trainSet=data,lr=0.01)
         dnn.save(modelName=modelName)
         dnn.prepare_tensorboard_verbose()
 
-    yzsb = FixNN(shape=50)
+    yzsb = FixNN(shape=100)
     x1,x2 = dnn.GetDeepFeature(data.train.wavs),dnn.GetDeepFeature(data.validation.wavs)
     x = np.concatenate((x1,x2),axis=0)
     y = np.concatenate((data.train.labels, data.validation.labels),axis=0)
