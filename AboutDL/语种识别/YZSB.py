@@ -32,7 +32,7 @@ class FixNN(object):
     def fit(self,x,y,xt,yt):
         checkpointer = ModelCheckpoint(filepath=modelName, save_best_only=True)
         tensbrd = TensorBoard(log_dir='./tmp/tbLog')
-        eStop = EarlyStopping()#损失函数不再减小后十轮停止训练
+        eStop = EarlyStopping(patience=10)#损失函数不再减小后十轮停止训练
         callback = [checkpointer]
         
         history = self.Classifer.fit(x,y,epochs=self.n_epochs,batch_size=self.batch_size,validation_split=0.2,callbacks=callback)
