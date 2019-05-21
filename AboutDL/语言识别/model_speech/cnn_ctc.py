@@ -45,11 +45,7 @@ class Am():
         self.h7 = Dropout(0.2)(self.h7)
         self.outputs = dense(self.vocab_size, activation='softmax')(self.h7)
         self.model = Model(inputs=self.inputs, outputs=self.outputs)
-<<<<<<< HEAD
         self.model.summary()
-=======
-        #self.model.summary()
->>>>>>> 0e9f3a4469c613f9e38872741c4685ef42db96cd
 
     def _ctc_init(self):
         self.labels = Input(name='the_labels', shape=[None], dtype='float32')
