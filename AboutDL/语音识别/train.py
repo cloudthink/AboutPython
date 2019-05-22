@@ -3,6 +3,10 @@ import tensorflow as tf
 from utils import get_data, data_hparams
 from keras.callbacks import ModelCheckpoint,EarlyStopping,TensorBoard
 
+from keras.backend.tensorflow_backend import set_session
+config = tf.ConfigProto()
+config.gpu_options.allow_growth=True   #不全部占满显存, 按需分配
+set_session(tf.Session(config=config))
 
 # 0.准备训练所需数据------------------------------
 data_args = data_hparams()
@@ -50,9 +54,9 @@ epochs = 100
 batch_num = len(train_data.wav_lst) // train_data.batch_size
 
 # checkpoint
-cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'checkpoint')
+cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 ckpt = "model_{epoch:02d}.h5"
-checkpoint = ModelCheckpoint(os.path.join(cur_path, ckpt), monitor='val_loss',save_best_only=True)
+checkpoint = ModelCheckpoint(os.path.join(cur_path,'checkpoint', ckpt), monitor='val_loss',save_best_only=True)
 eStop = EarlyStopping(patience=3)#损失函数不再减小后3轮停止训练
 tensbrd = TensorBoard(log_dir='./tmp/tbLog')
 cbList =[checkpoint,eStop]
@@ -63,8 +67,8 @@ validate_step = 100#取N个验证的平均结果
 history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=cbList,
     workers=1, use_multiprocessing=False,verbose=1,
     validation_data=dev_batch, validation_steps=validate_step)
-am.ctc_model.save_weights('logs_am/model.h5')
-am.ctc_model.save('logs_am/Amodel.h5')#保存一个全的带结构和参数的
+am.ctc_model.save_weights(os.path.join(cur_path,'logs_am', 'model.h5'))
+am.ctc_model.save(os.path.join(cur_path,'logs_am', 'Amodel.h5'))#保存一个全的带结构和参数的
 
 import matplotlib.pyplot as plt
 import numpy as np
