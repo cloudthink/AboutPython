@@ -19,7 +19,7 @@ class SpeechRecognition():
         self.train_data = get_data(data_args)
 
         am_args = am_hparams()
-        am_args.vocab_size = len(self.train_data.am_vocab)#这里有个坑，需要和训练时的长度一致，需要强烈关注！
+        am_args.vocab_size = len(self.train_data.am_vocab) +1#这里有个坑，需要和训练时的长度一致，需要强烈关注！
         self.am = Am(am_args)
         #print('加载声学模型中...')
         self.am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))

@@ -53,8 +53,8 @@ epochs = 100
 batch_num = len(train_data.wav_lst) // train_data.batch_size
 
 # checkpoint
-checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}.h5"), monitor='val_loss',save_best_only=True)
-eStop = EarlyStopping(patience=2)#损失函数不再减小后2轮停止训练
+checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"), monitor='val_loss',save_best_only=True)
+eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
 #tensbrd = TensorBoard(log_dir='./tmp/tbLog')
 cbList =[checkpoint,eStop]
 batch = train_data.get_am_batch()#获取的是生成器
