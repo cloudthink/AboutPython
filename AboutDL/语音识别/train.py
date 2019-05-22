@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-from utils import get_data, data_hparams
+import utils
 from keras.callbacks import ModelCheckpoint,EarlyStopping,TensorBoard
 
 from keras.backend.tensorflow_backend import set_session
@@ -8,10 +8,10 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth=True   #不全部占满显存, 按需分配
 set_session(tf.Session(config=config))
 
+
 # 0.准备训练所需数据------------------------------
-data_args = data_hparams()
+data_args = utils.data_hparams()
 data_args.data_type = 'train'
-data_args.data_path = '/media/yangjinming/DATA/Dataset'
 data_args.thchs30 = True
 data_args.aishell = False
 data_args.prime = False
@@ -19,13 +19,12 @@ data_args.stcmd = False
 data_args.batch_size = 2
 data_args.data_length = None
 data_args.shuffle = True
-train_data = get_data(data_args)
+train_data = utils.get_data(data_args)
 
 
 # 0.准备验证所需数据------------------------------
-data_args = data_hparams()
+data_args = utils.data_hparams()
 data_args.data_type = 'dev'
-data_args.data_path = '/media/yangjinming/DATA/Dataset'
 data_args.thchs30 = True
 data_args.aishell = False
 data_args.prime = False
@@ -33,7 +32,7 @@ data_args.stcmd = False
 data_args.batch_size = 2
 data_args.data_length = None
 data_args.shuffle = True
-dev_data = get_data(data_args)
+dev_data = utils.get_data(data_args)
 
 
 # 1.声学模型训练-----------------------------------
@@ -46,39 +45,24 @@ am_args.is_training = True
 am = Am(am_args)
 
 
-if os.path.exists('logs_am/model.h5'):
+if os.path.exists(os.path.join(utils.cur_path,'logs_am/model.h5')):
     print('加载声学模型...')
-    am.ctc_model.load_weights('logs_am/model.h5')
+    am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
 
 epochs = 100
 batch_num = len(train_data.wav_lst) // train_data.batch_size
 
 # checkpoint
-cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-ckpt = "model_{epoch:02d}.h5"
-checkpoint = ModelCheckpoint(os.path.join(cur_path,'checkpoint', ckpt), monitor='val_loss',save_best_only=True)
-eStop = EarlyStopping(patience=3)#损失函数不再减小后3轮停止训练
-tensbrd = TensorBoard(log_dir='./tmp/tbLog')
+checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}.h5"), monitor='val_loss',save_best_only=True)
+eStop = EarlyStopping(patience=2)#损失函数不再减小后2轮停止训练
+#tensbrd = TensorBoard(log_dir='./tmp/tbLog')
 cbList =[checkpoint,eStop]
-
 batch = train_data.get_am_batch()#获取的是生成器
 dev_batch = dev_data.get_am_batch()
 validate_step = 100#取N个验证的平均结果
 history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=cbList,
-    workers=1, use_multiprocessing=False,verbose=1,
-    validation_data=dev_batch, validation_steps=validate_step)
-am.ctc_model.save_weights(os.path.join(cur_path,'logs_am', 'model.h5'))
-am.ctc_model.save(os.path.join(cur_path,'logs_am', 'Amodel.h5'))#保存一个全的带结构和参数的
-
-import matplotlib.pyplot as plt
-import numpy as np
-plt.plot(np.arange(len(history.history['acc'])),history.history['acc'],label='Train')
-plt.plot(np.arange(len(history.history['val_acc'])),history.history['val_acc'],label='CV')
-plt.title('Accuracy')
-plt.xlabel('Epcho')
-plt.ylabel('ACC')
-plt.legend(loc=0)
-plt.show()
+    workers=1, use_multiprocessing=False,verbose=1,validation_data=dev_batch, validation_steps=validate_step)
+am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am', 'model.h5'))
 
 
 # 2.语言模型训练-------------------------------------------
@@ -102,12 +86,12 @@ with tf.Session(graph=lm.graph) as sess:
     merged = tf.summary.merge_all()
     sess.run(tf.global_variables_initializer())
     add_num = 0
-    if os.path.exists('logs_lm/checkpoint'):
+    if os.path.exists(os.path.join(utils.cur_path,'logs_lm/checkpoint')):
         print('加载语言模型中...')
         latest = tf.train.latest_checkpoint('logs_lm')
         add_num = int(latest.split('_')[-1])
         saver.restore(sess, latest)
-    writer = tf.summary.FileWriter('logs_lm/tensorboard', tf.get_default_graph())
+    writer = tf.summary.FileWriter(os.path.join(utils.cur_path,'logs_lm/tensorboard'), tf.get_default_graph())
     for k in range(epochs):
         total_loss = 0
         batch = train_data.get_lm_batch()
@@ -120,5 +104,5 @@ with tf.Session(graph=lm.graph) as sess:
                 rs=sess.run(merged, feed_dict=feed)
                 writer.add_summary(rs, k * batch_num + i)
         print('步数', k+1, ': 平均损失值 = ', total_loss/batch_num)
-    saver.save(sess, 'logs_lm/model_%d' % (epochs + add_num))
+    saver.save(sess, os.path.join(utils.cur_path,'logs_lm/model_%d' % (epochs + add_num)))
     writer.close()

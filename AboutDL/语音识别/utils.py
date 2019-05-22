@@ -9,11 +9,12 @@ from python_speech_features import mfcc
 from random import shuffle
 from keras import backend as K
 
+cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 def data_hparams():
     params = tf.contrib.training.HParams(
         # vocab
-        data_type='test',
-        data_path='/media/yangjinming/DATA',
+        data_type='train',
+        data_path='/media/yangjinming/DATA/Dataset',
         thchs30=True,#默认只使用最小的数据集
         aishell=False,#最大数据集
         prime=False,#第二小

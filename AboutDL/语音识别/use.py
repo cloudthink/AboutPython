@@ -4,6 +4,7 @@ import difflib
 import glob
 import tensorflow as tf
 import numpy as np
+import utils
 from utils import decode_ctc, GetEditDistance,get_wav_Feature
 # 1.声学模型-----------------------------------
 from model_speech.cnn_ctc import Am, am_hparams
@@ -17,27 +18,21 @@ class SpeechRecognition():
         data_args = data_hparams()
         self.train_data = get_data(data_args)
 
-        bath = self.train_data.get_am_batch()
-        a = next(bath)
-
         am_args = am_hparams()
-        am_args.vocab_size = len(self.train_data.am_vocab)
+        am_args.vocab_size = len(self.train_data.am_vocab)#这里有个坑，需要和训练时的长度一致，需要强烈关注！
         self.am = Am(am_args)
         #print('加载声学模型中...')
-        self.am.ctc_model.load_weights('logs_am/model.h5')
-        
+        self.am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
         lm_args = lm_hparams()
         lm_args.input_vocab_size = len(self.train_data.pny_vocab)
         lm_args.label_vocab_size = len(self.train_data.han_vocab)
         lm_args.dropout_rate = 0.
         #print('加载语言模型中...')
         self.lm = Lm(lm_args)
-        self.sess = tf.Session(graph=self.lm.graph)
-        with self.lm.graph.as_default():
-            saver =tf.train.Saver()
-        with self.sess.as_default():
-            latest = tf.train.latest_checkpoint('logs_lm')
-            saver.restore(self.sess, latest)
+        self.sess = tf.Session()
+        lmPath = tf.train.latest_checkpoint(os.path.join(utils.cur_path,'logs_lm'))
+        saver = tf.train.import_meta_graph("{}.meta".format(lmPath))
+        saver.restore(self.sess, lmPath)
 
 
     def predect(self,x,pinyin=None,hanzi=None):
