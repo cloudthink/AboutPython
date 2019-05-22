@@ -38,7 +38,7 @@ dev_data = utils.get_data(data_args)
 # 1.声学模型训练-----------------------------------
 from model_speech.cnn_ctc import Am, am_hparams
 am_args = am_hparams()
-am_args.vocab_size = len(train_data.am_vocab)
+am_args.vocab_size = len(train_data.am_vocab) +1
 am_args.gpu_nums = 1
 am_args.lr = 0.0008
 am_args.is_training = True
