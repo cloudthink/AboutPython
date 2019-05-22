@@ -12,7 +12,7 @@ data_args.thchs30 = True
 data_args.aishell = False
 data_args.prime = True
 data_args.stcmd = False
-data_args.batch_size = 3
+data_args.batch_size = 2
 data_args.data_length = None
 data_args.shuffle = True
 train_data = get_data(data_args)
@@ -26,7 +26,7 @@ data_args.thchs30 = True
 data_args.aishell = False
 data_args.prime = True
 data_args.stcmd = False
-data_args.batch_size = 3
+data_args.batch_size = 2
 data_args.data_length = None
 data_args.shuffle = True
 dev_data = get_data(data_args)
@@ -50,17 +50,17 @@ epochs = 100
 batch_num = len(train_data.wav_lst) // train_data.batch_size
 
 # checkpoint
-ckpt = "model_{epoch:02d}-{val_acc:.2f}.hdf5"
+ckpt = "model_{epoch:02d}-val_acc{:.2f}.hdf5"#后面记录精度的冒号前面不能有字，坑
 checkpoint = ModelCheckpoint(os.path.join('./checkpoint', ckpt), monitor='val_loss',save_best_only=True)
 eStop = EarlyStopping(patience=3)#损失函数不再减小后3轮停止训练
 tensbrd = TensorBoard(log_dir='./tmp/tbLog')
-cbList =[checkpoint,eStop,tensbrd]
+cbList =[checkpoint,eStop]
 
 batch = train_data.get_am_batch()#获取的是生成器
 dev_batch = dev_data.get_am_batch()
-validate_step = 200#取200个验证的平均结果
+validate_step = 100#取N个验证的平均结果
 am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=cbList,
-    workers=1, use_multiprocessing=False,
+    workers=1, use_multiprocessing=False,verbose=1,
     validation_data=dev_batch, validation_steps=validate_step)
 am.ctc_model.save_weights('logs_am/model.h5')
 am.ctc_model.save('logs_am/Amodel.h5')#保存一个全的带结构和参数的

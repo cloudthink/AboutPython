@@ -108,6 +108,9 @@ class get_data():
                 wav_data_lst,label_data_lst = [],[]
                 begin = i * self.batch_size
                 end = begin + self.batch_size
+                if end >len(self.wav_lst):
+                    begin-=len(self.wav_lst)
+                    end-=len(self.wav_lst)
                 sub_list = index_list[begin:end]
                 for index in sub_list:
                     fbank = compute_fbank(os.path.join(self.data_path,self.wav_lst[index]))
