@@ -34,9 +34,33 @@ class SpeechRecognition():
         saver = tf.train.import_meta_graph("{}.meta".format(lmPath))
         saver.restore(self.sess, lmPath)
 
+    def predicts_file(self,files,pinyin=None,hanzi=None):
+        res = []
+        for i,f in enumerate(files):
+            p = h = None
+            if pinyin is not None:
+                p = pinyin[i]
+            if hanzi is not None:
+                h = hanzi[i]
+            res.append(self.predict_file(f,p,h))
+        return res
 
-    def predect(self,x,pinyin=None,hanzi=None):
-        x,_ = get_wav_Feature(x)#x为wav音频,转为特征向量
+    def predicts(self,wavs,pinyin=None,hanzi=None):
+        res = []
+        for i,wav in enumerate(wavs):
+            p = h = None
+            if pinyin is not None:
+                p = pinyin[i]
+            if hanzi is not None:
+                h = hanzi[i]
+            res.append(self.predict(wav,p,h))
+        return res
+
+    def predict_file(self,file,pinyin=None,hanzi=None):
+        x,_ = get_wav_Feature(file)
+        return self.predict(x)
+
+    def predict(self,x,pinyin=None,hanzi=None):
         result = self.am.model.predict(x, steps=1)
         # 将数字结果转化为文本结果
         _, text = decode_ctc(result, self.train_data.pny_vocab)
@@ -61,4 +85,4 @@ if __name__ == "__main__":
     data_args = data_hparams()
     test = get_data(data_args)
     for i in range(10):
-        yysb.predect(test.wav_lst[i],test.pny_lst[i],test.han_lst[i])
+        yysb.predict_file(test.wav_lst[i],test.pny_lst[i],test.han_lst[i])
