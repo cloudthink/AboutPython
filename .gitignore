@@ -1,0 +1,6 @@
+AboutDL/语音识别/data/han_vocab_dev_1010.npy
+AboutDL/语音识别/data/han_vocab_train_1010.npy
+AboutDL/语音识别/data/pny_vocab_dev_1010.npy
+AboutDL/语音识别/data/pny_vocab_train_1010.npy
+AboutDL/语音识别/model_language/__pycache__/transformer.cpython-37.pyc
+AboutDL/语音识别/__pycache__/utils.cpython-37.pyc
