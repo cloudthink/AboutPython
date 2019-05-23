@@ -14,7 +14,7 @@ data_args = utils.data_hparams()
 data_args.data_type = 'train'
 data_args.thchs30 = True
 data_args.aishell = False
-data_args.prime = False
+data_args.prime = True
 data_args.stcmd = False
 data_args.batch_size = 2
 data_args.data_length = None
@@ -27,7 +27,7 @@ data_args = utils.data_hparams()
 data_args.data_type = 'dev'
 data_args.thchs30 = True
 data_args.aishell = False
-data_args.prime = False
+data_args.prime = True
 data_args.stcmd = False
 data_args.batch_size = 2
 data_args.data_length = None
@@ -38,7 +38,7 @@ dev_data = utils.get_data(data_args)
 # 1.声学模型训练-----------------------------------
 from model_speech.cnn_ctc import Am, am_hparams
 am_args = am_hparams()
-am_args.vocab_size = len(train_data.am_vocab) +1
+am_args.vocab_size = len(train_data.pny_vocab)
 am_args.gpu_nums = 1
 am_args.lr = 0.0008
 am_args.is_training = True
@@ -54,7 +54,7 @@ batch_num = len(train_data.wav_lst) // train_data.batch_size
 
 # checkpoint
 checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"), monitor='val_loss',save_best_only=True)
-eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
+eStop = EarlyStopping(patience=2)#损失函数不再减小后patience轮停止训练
 #tensbrd = TensorBoard(log_dir='./tmp/tbLog')
 cbList =[checkpoint,eStop]
 batch = train_data.get_am_batch()#获取的是生成器

@@ -16,7 +16,7 @@ train_data = get_data(data_args)
 from model_speech.cnn_ctc import Am, am_hparams
 
 am_args = am_hparams()
-am_args.vocab_size = len(train_data.am_vocab)
+am_args.vocab_size = len(train_data.pny_vocab)
 am = Am(am_args)
 print('加载声学模型中...')
 am.ctc_model.load_weights('logs_am/model.h5')
@@ -57,7 +57,7 @@ for i in range(10):
     y = test_data.pny_lst[i]
     result = am.model.predict(x, steps=1)
     # 将数字结果转化为文本结果
-    _, text = decode_ctc(result, train_data.am_vocab)
+    _, text = decode_ctc(result, train_data.pny_vocab)
     text = ' '.join(text)
     print('文本结果：', text)
     print('原文结果：', ' '.join(y))

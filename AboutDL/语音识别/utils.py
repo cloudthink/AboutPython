@@ -19,7 +19,7 @@ def data_hparams():
         aishell=False,#最大数据集
         prime=False,#第二小
         stcmd=False,#第三小（比较大了11万音频）
-        batch_size=1,
+        batch_size=2,
         data_length=None,
         shuffle=True)
     return params
@@ -38,8 +38,8 @@ class get_data():
         self.shuffle = args.shuffle
         self.source_init()
 
+
     def source_init(self):
-        print('获取数据源列表...')
         read_files = []
         if self.thchs30:
             read_files.append('thchs_{}.txt'.format(self.data_type))
@@ -54,8 +54,8 @@ class get_data():
         self.han_lst = []
         for file in read_files:
             print('加载 ', file, ' 数据...')
-            cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
-            sub_file = os.path.join(cur_path,file)
+            sub_path = os.path.join(cur_path,'data')
+            sub_file = os.path.join(sub_path,file)
             with open(sub_file, 'r', encoding='utf8') as f:
                 data = f.readlines()
             for line in tqdm(data,ncols=80):#ncols进度条宽度
@@ -68,22 +68,16 @@ class get_data():
             self.pny_lst = self.pny_lst[:self.data_length]
             self.han_lst = self.han_lst[:self.data_length]
 
-        print('生成/加载 声学模型 拼音数据...')
-        self.am_vocab = self.LoadCatch('am_vocab',path=cur_path)
-        if self.am_vocab is None:
-            self.am_vocab = self.mk_am_vocab(self.pny_lst)#拼音字典
-            self.SaveCatch('am_vocab',self.am_vocab,path=cur_path)
-
-        print('生成/加载 语言模型 拼音数据...')
+        print('生成/加载 拼音字典...')
         self.pny_vocab = self.LoadCatch('pny_vocab',path=cur_path)
         if self.pny_vocab is None:
-            self.pny_vocab = self.mk_lm_pny_vocab(self.pny_lst)#同样是拼音字典
+            self.pny_vocab = self.mk_pny_vocab(self.pny_lst)#同样是拼音字典
             self.SaveCatch('pny_vocab',self.pny_vocab,path=cur_path)
 
-        print('生成/加载 语言模型 汉字数据...')
+        print('生成/加载 汉字字典...')
         self.han_vocab = self.LoadCatch('han_vocab',path=cur_path)
         if self.han_vocab is None:
-            self.han_vocab = self.mk_lm_han_vocab(self.han_lst)#和拼音字典是不等长的
+            self.han_vocab = self.mk_han_vocab(self.han_lst)#和拼音字典是不等长的
             self.SaveCatch('han_vocab',self.han_vocab,path=cur_path)
 
 
@@ -117,17 +111,15 @@ class get_data():
                     fbank = compute_fbank(os.path.join(self.data_path,self.wav_lst[index]))
                     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
                     pad_fbank[:fbank.shape[0], :] = fbank
-                    label = self.pny2id(self.pny_lst[index], self.am_vocab)
+                    label = self.pny2id(self.pny_lst[index], self.pny_vocab)
                     label_ctc_len = self.ctc_len(label)
                     if pad_fbank.shape[0] // 8 >= label_ctc_len:
                         wav_data_lst.append(pad_fbank)
                         label_data_lst.append(label)
                 pad_wav_data, input_length = wav_padding(wav_data_lst)
-                pad_label_data, label_length = self.label_padding(label_data_lst)
-                inputs = {
-                    'the_inputs': pad_wav_data,'the_labels': pad_label_data,
-                    'input_length': input_length,'label_length': label_length,
-                        }
+                pad_label_data, label_length = label_padding(label_data_lst)
+                inputs = {'the_inputs': pad_wav_data,'the_labels': pad_label_data,
+                        'input_length': input_length,'label_length': label_length,}
                 outputs = {'ctc': np.zeros(pad_wav_data.shape[0], )}
                 yield inputs, outputs
 
@@ -143,35 +135,17 @@ class get_data():
             label_batch = np.array([self.han2id(line, self.han_vocab) + [0] * (max_len - len(line)) for line in label_batch])
             yield input_batch, label_batch
 
-
+    #第一个放的是填充，处理字典生成时未遇见过的数据(用训练生成字典，用其他的去找有可能会发生)
     def pny2id(self, line, vocab):
-        return [vocab.index(pny) for pny in line]
+        return [vocab.index(pny) if pny in vocab else 0 for pny in line]
 
 
     def han2id(self, line, vocab):
-        return [vocab.index(han) for han in line]
+        return [vocab.index(han) if han in vocab else 0 for han in line]
 
 
-    def label_padding(self, label_data_lst):
-        label_lens = np.array([len(label) for label in label_data_lst])
-        max_label_len = max(label_lens)
-        new_label_data_lst = np.zeros((len(label_data_lst), max_label_len))
-        for i in range(len(label_data_lst)):
-            new_label_data_lst[i][:len(label_data_lst[i])] = label_data_lst[i]
-        return new_label_data_lst, label_lens
-
-
-    def mk_am_vocab(self, data):
-        vocab = []
-        for line in tqdm(data,ncols=80):
-            for pny in line:
-                if pny not in vocab:
-                    vocab.append(pny)
-        vocab.append('_')
-        return vocab
-
-
-    def mk_lm_pny_vocab(self, data):
+    #拼音字典是声学模型和语言学模型共用的（声学的标签，语言学的输入）
+    def mk_pny_vocab(self, data):
         vocab = ['<PAD>']
         for line in tqdm(data,ncols=80):
             for pny in line:
@@ -179,8 +153,8 @@ class get_data():
                     vocab.append(pny)
         return vocab
 
-
-    def mk_lm_han_vocab(self, data):
+    #生成语言学汉字字典
+    def mk_han_vocab(self, data):
         vocab = ['<PAD>']
         for line in tqdm(data,ncols=80):
             line = ''.join(line.split(' '))
@@ -241,6 +215,14 @@ def wav_padding(wav_data_lst):
     return new_wav_data_lst, wav_lens
 
 
+def label_padding(label_data_lst):
+    label_lens = np.array([len(label) for label in label_data_lst])
+    max_label_len = max(label_lens)
+    new_label_data_lst = np.zeros((len(label_data_lst), max_label_len))
+    for i in range(len(label_data_lst)):
+        new_label_data_lst[i][:len(label_data_lst[i])] = label_data_lst[i]
+    return new_label_data_lst, label_lens
+
 # 获取音频文件的特征向量
 def get_wav_Feature(wav,label=None):
     wav_data = []
@@ -248,11 +230,9 @@ def get_wav_Feature(wav,label=None):
     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
     pad_fbank[:fbank.shape[0], :] = fbank
     pad_wav_data, input_length = wav_padding(wav_data)
-    #inputs = {'the_inputs': pad_wav_data,'the_labels': pad_label_data,'input_length': input_length,'label_length': label_length,}
     return pad_wav_data, input_length
 
-
-# word error rate------------------------------------
+# 错词率------------------------------------
 def GetEditDistance(str1, str2):
 	leven_cost = 0
 	s = difflib.SequenceMatcher(None, str1, str2)

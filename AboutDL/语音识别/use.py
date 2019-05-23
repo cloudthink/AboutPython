@@ -19,7 +19,7 @@ class SpeechRecognition():
         self.train_data = get_data(data_args)
 
         am_args = am_hparams()
-        am_args.vocab_size = len(self.train_data.am_vocab) +1#这里有个坑，需要和训练时的长度一致，需要强烈关注！
+        am_args.vocab_size = len(self.train_data.pny_vocab)#这里有个坑，需要和训练时的长度一致，需要强烈关注！
         self.am = Am(am_args)
         #print('加载声学模型中...')
         self.am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
@@ -39,7 +39,7 @@ class SpeechRecognition():
         x,_ = get_wav_Feature(x)#x为wav音频,转为特征向量
         result = self.am.model.predict(x, steps=1)
         # 将数字结果转化为文本结果
-        _, text = decode_ctc(result, self.train_data.am_vocab)
+        _, text = decode_ctc(result, self.train_data.pny_vocab)
         text = ' '.join(text)
         print('识别拼音：', text)
         if pinyin is not None:
