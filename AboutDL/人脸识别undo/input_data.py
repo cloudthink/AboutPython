@@ -1,14 +1,11 @@
 import glob
 import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
 from PIL import Image
 import random
-import librosa
-import timeit
-from sklearn.model_selection import train_test_split
 import os
-import pylab
 
-catchDirPath = 'C:\\DataSet\\Catch'
 #这四个全局变量都需要根据情况调整
 img_shape = [1024,768,255]
 lab_dict={'isiXhosa':0,'Afrikaans':1,'Sesotho':2,'Setswana':3}#(手动维护)标签数字化字典
@@ -17,58 +14,62 @@ rev_ten = np.array([x for x in range(len(lab_dict))])#(自动生成)转义向量
 
 
 class DataSet(object):
-    def __init__(self, x=None,y=None):
-        self._imgs = self._labels = None
-        self._epochs_completed = self._index_in_epoch = self._num_examples = 0
-        if x is not None:
-            self._imgs = x
-            self._labels = y
-            self._num_examples = len(self._imgs)
+    def __init__(self, fileDic,batch_size=100,shuffle=True):
+        self.fileList = glob.glob(fileDic + "*.jpg")#加载出文件夹中全部文件
+        self.batch_size = batch_size
+        self._batch_num = len(self.fileList) // self.batch_size
+        self.shuffle = shuffle
 
-    def read(self, imgs = None,fileNum = None):
-        x , y = [],[]
-        if not os.path.exists(catchDirPath):#因为加载文件过慢，所以只在第一次进行原始文件读取，之后都读取缓存文件
-            os.makedirs(catchDirPath)
-        if fileNum is None:#指定了哪个缓存就去直接加载，在这个数非None的情况下可以不需要原始文件
-            fileNum = len(imgs)
-        
-        if not os.path.exists(os.path.join(catchDirPath, "{}x.npy".format(fileNum))):
-            for i,imgPath in enumerate(imgs):#todo:图像处理
-                imageS = []
-                imageS.append(Image.open(imgPath))
-                imageS.append(imageS[0].rotata(90))#旋转增加样本量
-                imageS.append(imageS[0].rotata(180))#旋转增加样本量
-                imageS.append(imageS[0].rotata(270))#旋转增加样本量
-                label = np.eye(len(lab_dict))[lab_dict[imgPath.split('\\')[-1].split('_')[0]]]#默认按独热表示了，需要非独热的化去掉np.eye即可
-                
-                for image in imageS:
-                    x= 'todo'
-                    x.append(np.array(x))
-                    y.append(label)
-            #数据中心化
-            x[:] -= np.mean(x,axis=0)
+    def batchReader(self):
+        index_list = [i for i in range(len(self.fileList))]
+        while True:
+            if self.shuffle == True:
+                random.shuffle(index_list)
+            for i in range(self._batch_num):
+                x,y = [],[]
+                begin = i * self.batch_size
+                end = begin + self.batch_size
+                if end >len(self.fileList):
+                    begin-=len(self.fileList)
+                    end-=len(self.fileList)
+                sub_list = index_list[begin:end]
+                for index in sub_list:
+                    imgPath = self.fileList[index]
+                    label = np.eye(len(lab_dict))[lab_dict[imgPath.split('\\')[-1].split('_')[0]]]#默认按独热表示了，需要非独热的化去掉np.eye即可
+                    img = tf.gfile.FastGFile(imgPath,'r').read()
+                    with tf.Session() as sess:
+                        img_after_decode = tf.image.decode_image(img)
+                        dim3_img_after_decode = img_after_decode.eval()
+                        #查看解码之后的三维矩阵
+                        #print(dim3_img_after_decode)
+                        #plt.imshow(dim3_img_after_decode)
+                        #plt.show()
+                        x.append(np.array(dim3_img_after_decode))
+                        y.append(label)
 
-            np.save(os.path.join(catchDirPath, "{}x.npy".format(fileNum)),x)
-            np.save(os.path.join(catchDirPath, "{}y.npy".format(fileNum)),y)
-            #for i in range(len(x)//10000+1):#分片保存，当缓存文件过大时可以考虑采用分片，目前看1G只能直接快速加载了不需要分片（分片的话性能提升与否未测试）
-            #    if i == len(x):
-            #        tempX=x[i:]
-            #        tempY=y[i:]
-            #    else:
-            #        tempX=x[i*10000:(i+1)*10000]
-            #        tempY=y[i*10000:(i+1)*10000]
-            #    np.save(os.path.join(catchDirPath, "{}x{}.npy".format(fileNum,i)),tempX)
-            #    np.save(os.path.join(catchDirPath, "{}y{}.npy".format(fileNum,i)),tempY)
-        else:
-            x = np.load(os.path.join(catchDirPath, "{}x.npy".format(fileNum)))
-            y = np.load(os.path.join(catchDirPath, "{}y.npy".format(fileNum)))
-            #for i in range(int(fileNum)):#和分片保存对应的分片加载
-            #  if os.path.exists(os.path.join(catchDirPath, "{}x{}.npy".format(fileNum,i))):
-            #    x.extend(np.load(os.path.join(catchDirPath, "{}x{}.npy".format(fileNum,i))))
-            #    y.extend(np.load(os.path.join(catchDirPath, "{}y{}.npy".format(fileNum,i))))
-        self._imgs = x
-        self._labels = y
-        self._num_examples = len(self._imgs)
+                        #随机左右翻转
+                        flipped = tf.image.random_flip_left_right(img_after_decode)
+                        x.append(np.array(flipped.eval()))
+                        y.append(label)
+
+                        #随机亮度调整,max_delta不能为负，在[-max_delta,max_delta]之间随机调整图像亮度
+                        for _ in range(5):#取5个随机调整的结果
+                            brightness = tf.image.random_brightness(img_after_decode,max_delta=1)
+                            x.append(np.array(brightness.eval()))
+                            y.append(label)
+
+                        #随机对比度调整,在[lower，upper]之间随机调整对比度，两个数都不能为负
+                        for _ in range(5):#取5个随机调整的结果
+                            contrast = tf.image.random_contrast(img_after_decode,0.2,18,)
+                            x.append(np.array(contrast.eval()))
+                            y.append(label)
+
+                        #随机色相调整
+                        hue = tf.image.random_hue(img_after_decode,max_delta=0.5)
+                        x.append(np.array(hue.eval()))
+                        y.append(label)
+                        yield x, y
+                        #img_after_decode = tf.image.convert_image_dtype(img_after_decode,dtype=tf.float32)
 
     @property
     def imgs(self):
