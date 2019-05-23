@@ -49,9 +49,8 @@ class get_data():
             read_files.append('prime_{}.txt'.format(self.data_type))
         if self.stcmd:
             read_files.append('stcmd_{}.txt'.format(self.data_type))
-        self.wav_lst = []
-        self.pny_lst = []
-        self.han_lst = []
+        self.wav_lst,self.pny_lst,self.han_lst = [],[],[]
+
         for file in read_files:
             print('加载 ', file, ' 数据...')
             sub_path = os.path.join(cur_path,'data')
@@ -67,31 +66,40 @@ class get_data():
             self.wav_lst = self.wav_lst[:self.data_length]
             self.pny_lst = self.pny_lst[:self.data_length]
             self.han_lst = self.han_lst[:self.data_length]
-
+        tmp_pny=tmp_han=None
+        datatype = 'A'
         print('生成/加载 拼音字典...')
-        self.pny_vocab = self.LoadCatch('pny_vocab',path=sub_path)
+        self.pny_vocab = self.LoadCatch('pny_vocab',datatype,sub_path)
         if self.pny_vocab is None:
-            self.pny_vocab = self.mk_pny_vocab(self.pny_lst)#同样是拼音字典
-            self.SaveCatch('pny_vocab',self.pny_vocab,path=sub_path)
+            tmp_pny,tmp_han = self.make_all_file()
+            self.pny_vocab = self.mk_pny_vocab(tmp_pny)#拼音字典
+            self.SaveCatch('pny_vocab',self.pny_vocab,datatype,sub_path)
         print('拼音字典大小：{}'.format(len(self.pny_vocab)))
+
         print('生成/加载 汉字字典...')
-        self.han_vocab = self.LoadCatch('han_vocab',path=sub_path)
+        self.han_vocab = self.LoadCatch('han_vocab',datatype,sub_path)
         if self.han_vocab is None:
-            self.han_vocab = self.mk_han_vocab(self.han_lst)#和拼音字典是不等长的
-            self.SaveCatch('han_vocab',self.han_vocab,path=sub_path)
+            self.han_vocab = self.mk_han_vocab(tmp_han)#和拼音字典是不等长的
+            self.SaveCatch('han_vocab',self.han_vocab,datatype,sub_path)
         print('汉字字典大小：{}'.format(len(self.han_vocab)))
 
 
-    def LoadCatch(self,kindName,path='data/'):
-        kindName = kindName+'_{}_{}{}{}{}.npy'.format(self.data_type,int(self.thchs30),int(self.aishell),int(self.prime),int(self.stcmd))
+    def LoadCatch(self,kindName,datatype,path):
+        if datatype =='A':
+            kindName = kindName+'_A.npy'
+        else:
+            kindName = kindName+'_{}_{}{}{}{}.npy'.format(datatype,int(self.thchs30),int(self.aishell),int(self.prime),int(self.stcmd))
         if os.path.exists(os.path.join(path,kindName)):
             return np.load(os.path.join(path,kindName)).tolist()
         else:
             return None
 
 
-    def SaveCatch(self,kindName,value,path='data/'):
-        kindName = kindName+'_{}_{}{}{}{}.npy'.format(self.data_type,int(self.thchs30),int(self.aishell),int(self.prime),int(self.stcmd))
+    def SaveCatch(self,kindName,value,datatype,path):
+        if datatype == 'A':
+            kindName = kindName+'_A.npy'
+        else:
+            kindName = kindName+'_{}_{}{}{}{}.npy'.format(datatype,int(self.thchs30),int(self.aishell),int(self.prime),int(self.stcmd))
         np.save(os.path.join(path,kindName),value)
 
 
@@ -143,6 +151,27 @@ class get_data():
 
     def han2id(self, line, vocab):
         return [vocab.index(han) if han in vocab else 0 for han in line]
+
+
+    def make_all_file(self):
+        read_files = []
+        for datatype in ['train','dev','test']:
+            read_files.append('thchs_{}.txt'.format(datatype))
+            read_files.append('aishell_{}.txt'.format(datatype))
+            read_files.append('prime_{}.txt'.format(datatype))
+            read_files.append('stcmd_{}.txt'.format(datatype))
+        pny_lst = []
+        han_lst = []
+        for file in read_files:
+            sub_path = os.path.join(cur_path,'data')
+            sub_file = os.path.join(sub_path,file)
+            with open(sub_file, 'r', encoding='utf8') as f:
+                data = f.readlines()
+            for line in data:
+                _, pny, han = line.split('\t')
+                pny_lst.append(pny.split(' '))
+                han_lst.append(han.strip('\n'))
+        return pny_lst,han_lst
 
 
     #拼音字典是声学模型和语言学模型共用的（声学的标签，语言学的输入）
