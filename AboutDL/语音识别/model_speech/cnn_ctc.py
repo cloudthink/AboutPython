@@ -11,7 +11,7 @@ import tensorflow as tf
 def am_hparams():
     params = tf.contrib.training.HParams(
         # vocab
-        vocab_size = 50,
+        vocab_size = 1422,
         lr = 0.0008,
         gpu_nums = 1,
         is_training = True)
@@ -45,7 +45,7 @@ class Am():
         self.h7 = Dropout(0.2)(self.h7)
         self.outputs = dense(self.vocab_size, activation='softmax')(self.h7)
         self.model = Model(inputs=self.inputs, outputs=self.outputs)
-        self.model.summary()
+        #self.model.summary()
 
     def _ctc_init(self):
         self.labels = Input(name='the_labels', shape=[None], dtype='float32')
