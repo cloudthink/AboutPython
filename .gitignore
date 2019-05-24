@@ -3,3 +3,5 @@ AboutDL/语音识别/model_language/__pycache__/transformer.cpython-37.pyc
 AboutDL/语音识别/model_speech/__pycache__/cnn_ctc.cpython-37.pyc
 AboutDL/语音识别/data/han_vocab_A.npy
 AboutDL/语音识别/data/pny_vocab_A.npy
+AboutDL/语音识别/checkpoint/model_*.h5
+AboutDL/语音识别/logs_lm/tensorboard/events.out.*
