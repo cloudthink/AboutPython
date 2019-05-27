@@ -18,10 +18,8 @@ data_args.thchs30 = True
 data_args.aishell = True
 data_args.prime = True
 data_args.stcmd = True
-data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
-data_args.shuffle = True
+data_args.batch_size = 50#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
-
 
 # 0.准备验证所需数据------------------------------
 data_args = utils.data_hparams()
@@ -31,7 +29,6 @@ data_args.aishell = True
 data_args.prime = True
 data_args.stcmd = True
 data_args.batch_size = 2
-data_args.shuffle = True
 dev_data = utils.get_data(data_args)
 
 
@@ -46,13 +43,11 @@ def freeze_session(session, keep_var_names=None, output_names=None, clear_device
         output_names = output_names or []
         output_names += [v.op.name for v in tf.global_variables()]
         input_graph_def = graph.as_graph_def()
-
         if clear_devices:
             for node in input_graph_def.node:
                 node.device = ""
         frozen_graph = graph_util.convert_variables_to_constants(session, input_graph_def,output_names, freeze_var_names)
         return frozen_graph
-
 
 from model_speech.cnn_ctc import Am, am_hparams
 am_args = am_hparams()
@@ -72,7 +67,7 @@ if flag and input('已有保存的声学模型，是否继续训练 yes/no:') ==
 else:
     checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"), monitor='val_loss',save_best_only=True)
     eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
-    #ensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
+    #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
     tensbrd = TensorBoard(log_dir=os.path.join(utils.cur_path,'logs_am/tbLog'))
     batch = train_data.get_am_batch()#获取的是生成器
     dev_batch = dev_data.get_am_batch()
@@ -83,9 +78,8 @@ else:
     am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
     #写入序列化的 PB 文件
     with keras.backend.get_session() as sess:
-        frozen_graph = freeze_session(sess, output_names=['the_labels'])
+        frozen_graph = freeze_session(sess, output_names=['the_inputs','the_labels'])
         graph_io.write_graph(frozen_graph, os.path.join(utils.cur_path,'logs_am'),'amModel.pb', as_text=False)
-
 
 
 # 2.语言模型训练-------------------------------------------

@@ -7,9 +7,7 @@ from tensorflow.python.platform import gfile
 import numpy as np
 import utils
 from utils import decode_ctc, GetEditDistance,get_wav_Feature
-# 1.声学模型-----------------------------------
 from model_speech.cnn_ctc import Am, am_hparams
-# 2.语言模型-------------------------------------------
 from model_language.transformer import Lm, lm_hparams
 
 tf_usePB = True
@@ -55,11 +53,8 @@ class SpeechRecognition():
     def predicts_file(self,files,pinyin=None,hanzi=None):
         res = []
         for i,f in enumerate(files):
-            p = h = None
-            if pinyin is not None:
-                p = pinyin[i]
-            if hanzi is not None:
-                h = hanzi[i]
+            p = pinyin[i] if pinyin is not None else None
+            h = hanzi[i] if hanzi is not None else None
             res.append(self.predict_file(f,p,h))
         return res
 
@@ -67,11 +62,8 @@ class SpeechRecognition():
     def predicts(self,wavs,pinyin=None,hanzi=None):
         res = []
         for i,wav in enumerate(wavs):
-            p = h = None
-            if pinyin is not None:
-                p = pinyin[i]
-            if hanzi is not None:
-                h = hanzi[i]
+            p = pinyin[i] if pinyin is not None else None
+            h = hanzi[i] if hanzi is not None else None
             res.append(self.predict(wav,p,h))
         return res
 
@@ -89,7 +81,6 @@ class SpeechRecognition():
         print('识别拼音：', text)
         if pinyin is not None:
             print('原文拼音：', ' '.join(pinyin))
-        
         with self.sess.as_default():
             text = text.strip('\n').split(' ')
             x = np.array([self.train_data.pny_vocab.index(pny) for pny in text])
@@ -103,6 +94,21 @@ class SpeechRecognition():
             if hanzi is not None:
                 print('原文汉字：', hanzi)
             return text,got
+
+    
+    def testPinyin(self,pinyin):
+        with self.sess.as_default():
+            text = pinyin.strip('\n').split(' ')
+            x = np.array([self.train_data.pny_vocab.index(pny) for pny in text])
+            x = x.reshape(1, -1)
+            if tf_usePB:
+                preds = self.sess.run(self.preds, {self.x: x})
+            else:
+                preds = self.sess.run(self.lm.preds, {self.lm.x: x})
+            got = ''.join(self.train_data.han_vocab[idx] for idx in preds[0])
+            print('识别汉字：', got)
+            return got
+
 
 
 if __name__ == "__main__":
