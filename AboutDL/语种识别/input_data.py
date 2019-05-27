@@ -7,15 +7,14 @@ from sklearn.model_selection import train_test_split
 import os
 import pylab
 
-frame_length =100
+frame_length =50
 mfcc_length =30
 
-#lab_dict={'Japanese':0,'Afrikaans':1,'Sesotho':2}#(手动维护)标签数字化字典
 lab_dict={'isiXhosa':0,'Afrikaans':1,'Sesotho':2,'Setswana':3}#(手动维护)标签数字化字典
 
 rev_lab_dict = {value:key for key,value in lab_dict.items()}#(自动生成)反义字典，用于查看真实标签
 rev_ten = np.array([x for x in range(len(lab_dict))])#(自动生成)转义向量：用于将独热化的标签转换为字典数字
-catchDirPath = 'C:\\DataSet\\Catch'
+catchDirPath = '/home/yangjinming/DataSet/Catch'
 
 class DataSet(object):
     def __init__(self, x=None,y=None):
@@ -36,7 +35,7 @@ class DataSet(object):
         if not os.path.exists(os.path.join(catchDirPath, "{}xZ{}M{}.npy".format(fileNum,frame_length,mfcc_length))):
             for i,wav in enumerate(wavs):
                 wave,sr = librosa.load(wav,sr=None,mono = True)
-                label = np.eye(len(lab_dict))[lab_dict[wav.split('\\')[-1].split('_')[0]]]#默认按独热表示了，需要非独热的化去掉np.eye即可
+                label = np.eye(len(lab_dict))[lab_dict[wav.split('/')[-1].split('_')[0]]]#默认按独热表示了，需要非独热的化去掉np.eye即可
                 mfccTot = librosa.feature.mfcc(wave,sr,n_mfcc=mfcc_length).transpose()#转置，每一行一帧
                 for i in range(len(mfccTot)):
                     if i % frame_length==0 and i>0:
@@ -110,8 +109,8 @@ def read_data_sets(train_dir, one_hot=False):
     start_time = timeit.default_timer()
     print("#文件数量：{}\n开始读取音频文件特征...".format(len(files)))
     ds = DataSet()
-    ds.read(wavs=files)#读文件用文件列表
-    #ds.read(fileNum='9821')#当明确知道已经有缓存文件存在时可以直接用对应数目去加载缓存文件，可以删掉脱离原文件
+    #ds.read(wavs=files)#读文件用文件列表
+    ds.read(fileNum='9821')#当明确知道已经有缓存文件存在时可以直接用对应数目去加载缓存文件，可以删掉脱离原文件
     index = random.sample(range(len(ds.wavs)),len(ds.wavs))#全样本下标打乱，因为音频分帧的话同一个音频拆出来的相同语种的还是挨着的
     print('总样本数量：{}'.format(len(index)))
     V_SIZE,CV_SIZE = int(len(index)*0.9),int(len(index)*0.7)#验证集取数据集的0.1,交叉验证集取数据集的0.2

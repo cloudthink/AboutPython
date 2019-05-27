@@ -139,7 +139,7 @@ class DNN(object):
     def GetDeepFeature(self,X):
         return self.sess.run(self.DBF,feed_dict={self.x:X})
 
-    def load(self, modelName='yzsb',path='D:\\YZSB'):
+    def load(self, modelName='yzsb',path='/media/yangjinming/DATA/YZSB'):
         folder = os.path.join(path, "{}".format(modelName),"Model.ckpt")
         print("模型加载中...")
         #因为在类的初始化方法中构造了计算过程，所以这里不加载计算图(加载反倒会报错)
@@ -150,7 +150,7 @@ class DNN(object):
         print("加载模型来自 " + folder)
         return self
 
-    def save(self,modelName='yzsb', path='D:\\YZSB'):
+    def save(self,modelName='yzsb', path='/media/yangjinming/DATA/YZSB'):
         folder = os.path.join(path, "{}".format(modelName),"Model.ckpt")
         if not os.path.isdir(folder):
             os.makedirs(folder)
@@ -173,10 +173,10 @@ class DNN(object):
 
 #通过命令行模式启动时执行
 if __name__ == "__main__":
-    data = input_data.read_data_sets("C:\\DataSet\\")
+    data = input_data.read_data_sets("/home/yangjinming/DataSet/")
     dnn = DNN(n_in=input_data.mfcc_length*input_data.frame_length, n_out=len(input_data.lab_dict), hidden_layers_sizes=[2048, 2048, 100, 2048, 2048])
     modelName = '4-100yzsb600'#保存和加载模型的名字
-    if os.path.exists(os.path.join('D:\\YZSB',modelName,"Model.ckpt.meta")):
+    if os.path.exists(os.path.join('/media/yangjinming/DATA/YZSB',modelName,"Model.ckpt.meta")):
         dnn.load(modelName=modelName)
         dnn.TestAcc(trainSet=data)
         #dnn.predect(data.test.wavs[:10],data.test.labels[:10])
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         dnn.save(modelName=modelName)
         dnn.prepare_tensorboard_verbose()
 
-    yzsb = FixNN(shape=100)
+    yzsb = FixNN(shape=50)
     x1,x2 = dnn.GetDeepFeature(data.train.wavs),dnn.GetDeepFeature(data.validation.wavs)
     x = np.concatenate((x1,x2),axis=0)
     y = np.concatenate((data.train.labels, data.validation.labels),axis=0)

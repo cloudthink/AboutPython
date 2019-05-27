@@ -60,7 +60,7 @@ class FixNN(object):
             print("真实标签：{}\n".format(input_data.rev_lab_dict[np.dot(np.array(y[i]),input_data.rev_ten)]))
 
 if __name__ == "__main__":
-    data = input_data.read_data_sets("C:\\DataSet\\")
+    data = input_data.read_data_sets("/home/yangjinming/DataSet/")
     nn = FixNN()
     x = np.concatenate((data.train.wavs,data.validation.wavs),axis=0)
     y = np.concatenate((data.train.labels, data.validation.labels),axis=0)
