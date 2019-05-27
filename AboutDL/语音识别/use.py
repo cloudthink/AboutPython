@@ -29,10 +29,12 @@ class SpeechRecognition():
         lm_args.dropout_rate = 0.
         #print('加载语言模型中...')
         self.lm = Lm(lm_args)
-        self.sess = tf.Session()
-        lmPath = tf.train.latest_checkpoint(os.path.join(utils.cur_path,'logs_lm'))
-        saver = tf.train.import_meta_graph("{}.meta".format(lmPath))
-        saver.restore(self.sess, lmPath)
+        self.sess = tf.Session(graph=self.lm.graph)
+        with self.lm.graph.as_default():
+            saver =tf.train.Saver()
+        with self.sess.as_default():
+            lmPath = tf.train.latest_checkpoint(os.path.join(utils.cur_path,'logs_lm'))
+            saver.restore(self.sess, lmPath)
 
     def predicts_file(self,files,pinyin=None,hanzi=None):
         res = []
@@ -58,7 +60,7 @@ class SpeechRecognition():
 
     def predict_file(self,file,pinyin=None,hanzi=None):
         x,_ = get_wav_Feature(file)
-        return self.predict(x)
+        return self.predict(x,pinyin,hanzi)
 
     def predict(self,x,pinyin=None,hanzi=None):
         result = self.am.model.predict(x, steps=1)

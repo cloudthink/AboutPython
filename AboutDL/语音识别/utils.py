@@ -255,11 +255,10 @@ def label_padding(label_data_lst):
 
 # 获取音频文件的特征向量
 def get_wav_Feature(wav,label=None):
-    wav_data = []
     fbank = compute_fbank(wav)
     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
     pad_fbank[:fbank.shape[0], :] = fbank
-    pad_wav_data, input_length = wav_padding(wav_data)
+    pad_wav_data, input_length = wav_padding([pad_fbank])
     return pad_wav_data, input_length
 
 # 错词率------------------------------------

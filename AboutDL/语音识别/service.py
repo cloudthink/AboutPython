@@ -5,6 +5,7 @@ import http.server
 import urllib
 import keras
 import use
+import numpy as np
 
 yysb = use.SpeechRecognition()
 class TestHTTPHandle(http.server.BaseHTTPRequestHandler):  
@@ -18,7 +19,7 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		self.end_headers()
 		
 	def do_GET(self):  
-		buf = 'ASRT_SpeechRecognition API'  
+		buf = 'SpeechRecognition API'  
 		self.protocal_version = 'HTTP/1.1'   
 		
 		self._set_response()
@@ -41,7 +42,7 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		for line in datas_split:
 			[key, value]=line.split('=')
 			if('wavs' == key and '' != value):
-				wavs.append(int(value))
+				wavs.append(value)
 			elif('pre_type' == key):
 				pre_type = value
 			elif('token' == key ):
@@ -55,11 +56,15 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 			self.wfile.write(buf)  
 			return
 		
-
-		if len(wavs)>0:
-			r = self.recognize([wavs], pre_type)
-		else:
-			r = ''
+		try:
+			if len(wavs)>0:
+				wavs = np.array([float(f) for f in wavs[0].split('%2C')])
+				wavs = wavs.reshape(1,len(wavs)//200,200,1)
+				r = self.recognize([wavs], pre_type)
+			else:
+				r = ''
+		except BaseException as ex:
+			r=str(ex)
 
 		self._set_response()
 		
@@ -67,10 +72,10 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		self.wfile.write(r)
 		
 	def recognize(self, wavs,pre_type):
-        if pre_type == 'F':#传入的文件
-            pin,han = yysb.predicts_file(wavs)
-        else pre_type == 'W':#传入的音频编码
-		    pin,han = yysb.predicts(wavs)
+		if pre_type == 'F':#传入的文件
+			pin,han = yysb.predicts_file(wavs)[0]
+		elif pre_type == 'W':#传入的音频编码
+			pin,han = yysb.predicts(wavs)[0]
 		return han
 
 import socket

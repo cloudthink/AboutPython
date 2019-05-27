@@ -286,7 +286,7 @@ class Lm():
                                     
             # Final linear projection
             self.logits = tf.layers.dense(self.outputs, self.label_vocab_size)
-            self.preds = tf.to_int32(tf.argmax(self.logits, axis=-1))
+            self.preds = tf.cast(tf.argmax(self.logits, axis=-1),tf.int32,name='preds')
             self.istarget = tf.cast(tf.not_equal(self.y, 0),tf.float32)
             self.acc = tf.reduce_sum(tf.cast((tf.equal(self.preds, self.y)),tf.float32)*self.istarget)/ (tf.reduce_sum(self.istarget))
             tf.summary.scalar('acc', self.acc)

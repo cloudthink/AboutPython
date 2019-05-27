@@ -15,10 +15,10 @@ keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
 data_args = utils.data_hparams()
 data_args.data_type = 'train'
 data_args.thchs30 = True
-data_args.aishell = False
+data_args.aishell = True
 data_args.prime = True
-data_args.stcmd = False
-data_args.batch_size = 2
+data_args.stcmd = True
+data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 data_args.shuffle = True
 train_data = utils.get_data(data_args)
 
@@ -27,17 +27,33 @@ train_data = utils.get_data(data_args)
 data_args = utils.data_hparams()
 data_args.data_type = 'dev'
 data_args.thchs30 = True
-data_args.aishell = False
+data_args.aishell = True
 data_args.prime = True
-data_args.stcmd = False
+data_args.stcmd = True
 data_args.batch_size = 2
 data_args.shuffle = True
 dev_data = utils.get_data(data_args)
 
 
 batch_num = len(train_data.wav_lst) // train_data.batch_size
+epochs = 10086#两个模型都加入了提前终止判断，可以大一些，反正又到不了
 
 # 1.声学模型训练-----------------------------------
+def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=False):
+    graph = session.graph
+    with graph.as_default():
+        freeze_var_names = list(set(v.op.name for v in tf.global_variables()).difference(keep_var_names or []))
+        output_names = output_names or []
+        output_names += [v.op.name for v in tf.global_variables()]
+        input_graph_def = graph.as_graph_def()
+
+        if clear_devices:
+            for node in input_graph_def.node:
+                node.device = ""
+        frozen_graph = graph_util.convert_variables_to_constants(session, input_graph_def,output_names, freeze_var_names)
+        return frozen_graph
+
+
 from model_speech.cnn_ctc import Am, am_hparams
 am_args = am_hparams()
 am_args.vocab_size = len(train_data.pny_vocab)
@@ -51,37 +67,24 @@ if flag:
     print('加载声学模型...')
     am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
 
-if flag and input('已有保存的声学模型，是否继续训练 yes/no') == 'no':
+if flag and input('已有保存的声学模型，是否继续训练 yes/no:') == 'no':
     pass
 else:
     checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"), monitor='val_loss',save_best_only=True)
-    eStop = EarlyStopping(patience=2)#损失函数不再减小后patience轮停止训练
-    tensbrd = TensorBoard(log_dir='logs_am/tbLog')
+    eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
+    #ensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
+    tensbrd = TensorBoard(log_dir=os.path.join(utils.cur_path,'logs_am/tbLog'))
     batch = train_data.get_am_batch()#获取的是生成器
     dev_batch = dev_data.get_am_batch()
-    validate_step = 100#取N个验证的平均结果
+    validate_step = 200#取N个验证的平均结果
 
-    history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=100, callbacks=[checkpoint,eStop,tensbrd],
+    history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=[checkpoint,eStop,tensbrd],
         workers=1, use_multiprocessing=False,verbose=1,validation_data=dev_batch, validation_steps=validate_step)
     am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
     #写入序列化的 PB 文件
     with keras.backend.get_session() as sess:
-        frozen_graph = freeze_session(sess, output_names=['outputs'])
-        graph_io.write_graph(frozen_graph, os.path.join(utils.cur_path,'logs_am') 'amModel.pb', as_text=False)
-
-def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=False):
-    graph = session.graph
-    with graph.as_default():
-    freeze_var_names = list(set(v.op.name for v in tf.global_variables()).difference(keep_var_names or []))
-    output_names = output_names or []
-    output_names += [v.op.name for v in tf.global_variables()]
-    input_graph_def = graph.as_graph_def()
-
-    if clear_devices:
-        for node in input_graph_def.node:
-            node.device = ""
-    frozen_graph = graph_util.convert_variables_to_constants(session, input_graph_def,output_names, freeze_var_names)
-    return frozen_graph
+        frozen_graph = freeze_session(sess, output_names=['the_labels'])
+        graph_io.write_graph(frozen_graph, os.path.join(utils.cur_path,'logs_am'),'amModel.pb', as_text=False)
 
 
 
@@ -100,7 +103,6 @@ lm_args.lr = 0.0003
 lm_args.is_training = True
 lm = Lm(lm_args)
 
-epochs = 80
 batch_num_list = [i for i in range(batch_num)]#为进度条显示每一个epoch中的进度用
 loss_list=[]#记录每一步平均损失的列表，实现提前终止训练功能：每次取出后N个数据的平均值和当前的平均损失值作比较
 with lm.graph.as_default():
@@ -111,9 +113,10 @@ with tf.Session(graph=lm.graph) as sess:
     add_num = 0
     if os.path.exists(os.path.join(utils.cur_path,'logs_lm/checkpoint')):
         print('加载语言模型中...')
-        latest = tf.train.latest_checkpoint('logs_lm')
+        latest = tf.train.latest_checkpoint(os.path.join(utils.cur_path,'logs_lm'))
         add_num = int(latest.split('_')[-1])
         saver.restore(sess, latest)
+    #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_lm/tensorboard --host=127.0.0.1
     writer = tf.summary.FileWriter(os.path.join(utils.cur_path,'logs_lm/tensorboard'), tf.get_default_graph())
     for k in range(epochs):
         total_loss = 0
@@ -130,13 +133,14 @@ with tf.Session(graph=lm.graph) as sess:
         print('步数', k+1, ': 平均损失值 = ', avg_loss)
 
         loss_list.append(avg_loss)
-        if avg_loss>np.mean(loss_list[-10:])-0.01:
-            if input('模型性能已无法提升，是否提前结束训练？ yes/no')=='yes':
+        if len(loss_list)>1 and avg_loss>np.mean(loss_list[-5:])-0.0005:
+            #if input('模型性能已无法提升，是否提前结束训练？ yes/no:')=='yes':
+                epochs = k+1#为后面保存模型时记录名字用
                 break
         
     saver.save(sess, os.path.join(utils.cur_path,'logs_lm/model_%d' % (epochs + add_num)))
     writer.close()
     # 写入序列化的 PB 文件
-    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names='preds')
+    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['preds'])
     with tf.gfile.FastGFile(os.path.join(utils.cur_path,'logs_lm','lmModel.pb'), mode='wb') as f:
         f.write(constant_graph.SerializeToString())
