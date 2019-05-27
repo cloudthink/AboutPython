@@ -73,9 +73,9 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		
 	def recognize(self, wavs,pre_type):
 		if pre_type == 'F':#传入的文件
-			pin,han = yysb.predicts_file(wavs)[0]
+			_,han = yysb.predicts_file(wavs)[0]
 		elif pre_type == 'W':#传入的音频编码
-			pin,han = yysb.predicts(wavs)[0]
+			_,han = yysb.predicts(wavs)[0]
 		return han
 
 import socket
