@@ -141,6 +141,6 @@ with tf.Session(graph=lm.graph) as sess:
     saver.save(sess, os.path.join(utils.cur_path,'logs_lm/model_%d' % (epochs + add_num)))
     writer.close()
     # 写入序列化的 PB 文件
-    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['preds'])
+    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['x','y','preds'])
     with tf.gfile.FastGFile(os.path.join(utils.cur_path,'logs_lm','lmModel.pb'), mode='wb') as f:
         f.write(constant_graph.SerializeToString())

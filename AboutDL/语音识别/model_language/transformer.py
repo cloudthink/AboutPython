@@ -259,8 +259,8 @@ class Lm():
             self.dropout_rate = arg.dropout_rate
                 
             # input
-            self.x = tf.placeholder(tf.int32, shape=(None, None))
-            self.y = tf.placeholder(tf.int32, shape=(None, None))
+            self.x = tf.placeholder(tf.int32, shape=(None, None),name='x')
+            self.y = tf.placeholder(tf.int32, shape=(None, None),name='y')
             # embedding
             self.emb = embedding(self.x, vocab_size=self.input_vocab_size, num_units=self.hidden_units, scale=True, scope="enc_embed")
             self.enc = self.emb + embedding(tf.tile(tf.expand_dims(tf.range(tf.shape(self.x)[1]), 0), [tf.shape(self.x)[0], 1]),
