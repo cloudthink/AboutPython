@@ -9,7 +9,9 @@ from python_speech_features import mfcc
 from random import shuffle
 from keras import backend as K
 
-cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)))
+cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)))#获取的是文件所在路径，不受终端所在影响
+#cur_path = os.getcwd()#获取的是终端所在路径
+
 def data_hparams():
     params = tf.contrib.training.HParams(
         # vocab
@@ -82,6 +84,14 @@ class get_data():
             self.han_vocab = self.mk_han_vocab(tmp_han)#和拼音字典是不等长的
             self.SaveCatch('han_vocab',self.han_vocab,datatype,sub_path)
         print('汉字字典大小：{}'.format(len(self.han_vocab)))
+        ##将全文件生成缓存
+        print('开始将全文件处理成缓存，请耐心等待...')
+        try:
+            self.read_file2catch()
+            self.get_am_batch = self._get_am_batch
+            print('缓存生成成功')
+        except:
+            print('缓存生成失败，将沿用批读取的方式')
 
 
     def LoadCatch(self,kindName,datatype,path):
@@ -103,6 +113,80 @@ class get_data():
         np.save(os.path.join(path,kindName),value)
 
 
+    def read_file2catch(self,catchDirPath='/home/yangjinming/DataSet/Catch'):
+        self._PWD,self._PLD,self._IL,self._LL,self._OP = [],[],[],[],[]
+        if not os.path.exists(catchDirPath):#因为直接处理音频数据批稍微大一点显存就OOM了，所以改成将音频全都处理好存成缓存的形式
+            os.makedirs(catchDirPath)
+        #使用的数据集不同缓存也不相同，如果还有其他变化情况也可以在缓存文件名称上反应出来
+        subName = 'BS{}A{}P{}S{}T{}.npy'.format(self.batch_size,int(self.aishell),int(self.prime),int(self.stcmd),int(self.thchs30))
+        if not os.path.exists(os.path.join(catchDirPath, "PWD_{}_0".format(subName))):
+            index_list = [i for i in range(len(self.wav_lst))]
+            if self.shuffle == True:
+                shuffle(index_list)
+            for i in range(len(self.wav_lst) // self.batch_size):
+                wav_data_lst,label_data_lst = [],[]
+                begin = i * self.batch_size
+                end = begin + self.batch_size
+                sub_list = index_list[begin:end]
+                for index in sub_list:
+                    fbank = compute_fbank(os.path.join(self.data_path,self.wav_lst[index]))
+                    pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
+                    pad_fbank[:fbank.shape[0], :] = fbank
+                    label = self.pny2id(self.pny_lst[index], self.pny_vocab)
+                    label_ctc_len = self.ctc_len(label)
+                    if pad_fbank.shape[0] // 8 >= label_ctc_len:
+                        wav_data_lst.append(pad_fbank)
+                        label_data_lst.append(label)
+                pad_wav_data, input_length = wav_padding(wav_data_lst)
+                pad_label_data, label_length = label_padding(label_data_lst)
+                self._PWD.append(pad_wav_data)
+                self._PLD.append(pad_label_data)
+                self._IL.append(input_length)
+                self._LL.append(label_length)
+                self._OP.append(np.zeros(pad_wav_data.shape[0], ))
+
+            for i in range(len(self._PWD)//10000+1):#分片保存，当缓存文件过大时可以考虑采用分片
+                if i == len(self._PWD):
+                    tempPWD=self._PWD[i:]
+                    tempPLD=self._PLD[i:]
+                    tempIL=self._IL[i:]
+                    tempLL=self._LL[i:]
+                    tempOP=self._OP[i:]
+                else:
+                    tempPWD=self._PWD[i*10000:(i+1)*10000]
+                    tempPLD=self._PLD[i*10000:(i+1)*10000]
+                    tempIL=self._IL[i*10000:(i+1)*10000]
+                    tempLL=self._LL[i*10000:(i+1)*10000]
+                    tempOP=self._OP[i*10000:(i+1)*10000]
+                np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),tempPWD)
+                np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),tempPLD)
+                np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),tempIL)
+                np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i)),tempLL)
+                np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i)),tempOP)
+        else:
+            i = 0
+            while True:#和分片保存对应的分片加载
+                if os.path.exists(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i))):
+                    self._PWD.extend(np.load(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i))))
+                    self._PLD.extend(np.load(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i))))
+                    self._IL.extend(np.load(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i))))
+                    self._LL.extend(np.load(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i))))
+                    self._OP.extend(np.load(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i))))
+                    i+=1
+                else:
+                    break
+
+    #如果使用read_file2catch即全文件生成缓存的方式则将该方法前的下划线去掉加在另一个同名方法上，不然不会出错但是相当于白处理缓存了
+    def _get_am_batch(self):
+        i = 0
+        while True:
+            inputs = {'the_inputs': self._PWD[i],'the_labels': self._PLD[i],
+                'input_length': self._IL[i],'label_length': self._LL[i],}
+            outputs = {'ctc': self._OP[i]}
+            i = 0 if i==len(self._PWD)-1 else i+1
+            yield inputs, outputs
+
+
     def get_am_batch(self):
         index_list = [i for i in range(len(self.wav_lst))]
         while True:
@@ -112,9 +196,6 @@ class get_data():
                 wav_data_lst,label_data_lst = [],[]
                 begin = i * self.batch_size
                 end = begin + self.batch_size
-                if end >len(self.wav_lst):
-                    begin-=len(self.wav_lst)
-                    end-=len(self.wav_lst)
                 sub_list = index_list[begin:end]
                 for index in sub_list:
                     fbank = compute_fbank(os.path.join(self.data_path,self.wav_lst[index]))
@@ -160,8 +241,7 @@ class get_data():
             read_files.append('aishell_{}.txt'.format(datatype))
             read_files.append('prime_{}.txt'.format(datatype))
             read_files.append('stcmd_{}.txt'.format(datatype))
-        pny_lst = []
-        han_lst = []
+        pny_lst,han_lst = [],[]
         for file in read_files:
             sub_path = os.path.join(cur_path,'data')
             sub_file = os.path.join(sub_path,file)
@@ -286,3 +366,6 @@ def decode_ctc(num_result, num2word):
 	for i in r1:
 		text.append(num2word[i])
 	return r1, text
+
+if __name__ == "__main__":
+    pass
