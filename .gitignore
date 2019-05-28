@@ -5,3 +5,6 @@ AboutDL/语音识别/logs_lm/tensorboard/events.out.*
 AboutDL/语音识别/logs_am/tbLog/events.out.*
 AboutDL/语音识别/checkpoint/model_*
 *DNN4yzsb.h5
+AboutDL/语音识别/logs_lm/model_*.data-00000-of-00001
+AboutDL/语音识别/logs_lm/model_*.index
+AboutDL/语音识别/logs_lm/model_*.meta
