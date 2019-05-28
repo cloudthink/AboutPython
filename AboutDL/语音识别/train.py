@@ -4,7 +4,7 @@ import utils
 from tqdm import tqdm
 import keras
 from keras.callbacks import ModelCheckpoint,EarlyStopping,TensorBoard
-from tensorflow.python.framework import graph_util, graph_io
+from tensorflow.python.framework import graph_io
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth=True   #不全部占满显存, 按需分配
@@ -28,12 +28,12 @@ data_args.thchs30 = True
 data_args.aishell = True
 data_args.prime = True
 data_args.stcmd = True
-data_args.batch_size = 2
+data_args.batch_size = 50
 dev_data = utils.get_data(data_args)
 
 
 batch_num = len(train_data.wav_lst) // train_data.batch_size
-epochs = 10086#两个模型都加入了提前终止判断，可以大一些，反正又到不了
+epochs = 100#两个模型都加入了提前终止判断，可以大一些，反正又到不了
 
 # 1.声学模型训练-----------------------------------
 def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=False):
@@ -46,7 +46,7 @@ def freeze_session(session, keep_var_names=None, output_names=None, clear_device
         if clear_devices:
             for node in input_graph_def.node:
                 node.device = ""
-        frozen_graph = graph_util.convert_variables_to_constants(session, input_graph_def,output_names, freeze_var_names)
+        frozen_graph = tf.compat.v1.graph_util.convert_variables_to_constants(session, input_graph_def,output_names, freeze_var_names)
         return frozen_graph
 
 from model_speech.cnn_ctc import Am, am_hparams
@@ -127,7 +127,7 @@ with tf.Session(graph=lm.graph) as sess:
         print('步数', k+1, ': 平均损失值 = ', avg_loss)
 
         loss_list.append(avg_loss)
-        if len(loss_list)>1 and avg_loss>np.mean(loss_list[-5:])-0.0005:
+        if len(loss_list)>1 and avg_loss>np.mean(loss_list[-5:])-0.0015:#平均每个epoch下降不到0.0005则终止
             #if input('模型性能已无法提升，是否提前结束训练？ yes/no:')=='yes':
                 epochs = k+1#为后面保存模型时记录名字用
                 break
@@ -135,6 +135,6 @@ with tf.Session(graph=lm.graph) as sess:
     saver.save(sess, os.path.join(utils.cur_path,'logs_lm/model_%d' % (epochs + add_num)))
     writer.close()
     # 写入序列化的 PB 文件
-    constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['x','y','preds'])
-    with tf.gfile.FastGFile(os.path.join(utils.cur_path,'logs_lm','lmModel.pb'), mode='wb') as f:
+    constant_graph = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['x','y','preds'])
+    with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_lm','lmModel.pb'), mode='wb') as f:
         f.write(constant_graph.SerializeToString())
