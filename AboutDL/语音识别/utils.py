@@ -145,7 +145,8 @@ class get_data():
                 self._IL.append(input_length)
                 self._LL.append(label_length)
                 self._OP.append(np.zeros(pad_wav_data.shape[0], ))
-                if(len(self._PWD)>=5000):#每5000个保存一次，并清理掉list，防止一直占用内存
+                if(len(self._PWD)>=5000):#每5000个保存一次，并清理掉list，防止一直占用内存；
+                    #当然这种做法的一个问题是需要先有一次建立缓存的过程，不然之前的数据都清空了怎么行。可以直接执行utils进行建立缓存过程
                     np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),self._PWD)
                     np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),self._PLD)
                     np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),self._IL)
@@ -154,7 +155,7 @@ class get_data():
                     self._PWD,self._PLD,self._IL,self._LL,self._OP = [],[],[],[],[]
                     i+=1
 
-            for len(self._PWD)>0:#分片保存，当缓存文件过大时可以考虑采用分片
+            if len(self._PWD)> 0:#分片保存，当缓存文件过大时可以考虑采用分片
                 np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),self._PWD)
                 np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),self._PLD)
                 np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),self._IL)
