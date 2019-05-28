@@ -90,8 +90,9 @@ class get_data():
             self.read_file2catch()
             self.get_am_batch = self._get_am_batch
             print('缓存生成成功')
-        except:
-            print('缓存生成失败，将沿用批读取的方式')
+        except BaseException as e:
+            #print('当前待处理缓存大小：{}'.format(len(self._PWD)))#当内存也不够大时用来监视一个合适的分片大小的
+            print('缓存生成失败，将沿用批读取的方式\n'+str(e))
 
 
     def LoadCatch(self,kindName,datatype,path):
@@ -117,9 +118,9 @@ class get_data():
         self._PWD,self._PLD,self._IL,self._LL,self._OP = [],[],[],[],[]
         if not os.path.exists(catchDirPath):#因为直接处理音频数据批稍微大一点显存就OOM了，所以改成将音频全都处理好存成缓存的形式
             os.makedirs(catchDirPath)
-        i = 0
+        index = 0
         #使用的数据集不同缓存也不相同，如果还有其他变化情况也可以在缓存文件名称上反应出来
-        subName = 'BS{}A{}P{}S{}T{}.npy'.format(self.batch_size,int(self.aishell),int(self.prime),int(self.stcmd),int(self.thchs30))
+        subName = 'BS{}A{}P{}S{}T{}'.format(self.batch_size,int(self.aishell),int(self.prime),int(self.stcmd),int(self.thchs30))
         if not os.path.exists(os.path.join(catchDirPath, "PWD_{}_0".format(subName))):
             index_list = [i for i in range(len(self.wav_lst))]
             if self.shuffle == True:
@@ -145,31 +146,32 @@ class get_data():
                 self._IL.append(input_length)
                 self._LL.append(label_length)
                 self._OP.append(np.zeros(pad_wav_data.shape[0], ))
-                if(len(self._PWD)>=5000):#每5000个保存一次，并清理掉list，防止一直占用内存；
+                if(len(self._PWD)>=150):#每N个保存一次，并清理掉list，防止一直占用内存；因为这里面一个对应的是一个批的数据，所以实际上是很有内容的，不宜过大
                     #当然这种做法的一个问题是需要先有一次建立缓存的过程，不然之前的数据都清空了怎么行。可以直接执行utils进行建立缓存过程
-                    np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),self._PWD)
-                    np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),self._PLD)
-                    np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),self._IL)
-                    np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i)),self._LL)
-                    np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i)),self._OP)
+                    np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,index)),self._PWD)
+                    np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,index)),self._PLD)
+                    np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,index)),self._IL)
+                    np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,index)),self._LL)
+                    np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,index)),self._OP)
                     self._PWD,self._PLD,self._IL,self._LL,self._OP = [],[],[],[],[]
-                    i+=1
+                    print('第{}次处理缓存'.format(index))
+                    index+=1
 
             if len(self._PWD)> 0:#分片保存，当缓存文件过大时可以考虑采用分片
-                np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),self._PWD)
-                np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),self._PLD)
-                np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),self._IL)
-                np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i)),self._LL)
-                np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i)),self._OP)
+                np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,index)),self._PWD)
+                np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,index)),self._PLD)
+                np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,index)),self._IL)
+                np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,index)),self._LL)
+                np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,index)),self._OP)
         else:
             while True:#和分片保存对应的分片加载
-                if os.path.exists(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i))):
-                    self._PWD.extend(np.load(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i))))
-                    self._PLD.extend(np.load(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i))))
-                    self._IL.extend(np.load(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i))))
-                    self._LL.extend(np.load(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i))))
-                    self._OP.extend(np.load(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i))))
-                    i+=1
+                if os.path.exists(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,index))):
+                    self._PWD.extend(np.load(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,index))))
+                    self._PLD.extend(np.load(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,index))))
+                    self._IL.extend(np.load(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,index))))
+                    self._LL.extend(np.load(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,index))))
+                    self._OP.extend(np.load(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,index))))
+                    index+=1
                 else:
                     break
 
@@ -371,5 +373,5 @@ if __name__ == "__main__":
     data_args.aishell = True
     data_args.prime = True
     data_args.stcmd = True
-    data_args.batch_size = 50#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+    data_args.batch_size = 100#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
     train_data = get_data(data_args)
