@@ -117,6 +117,7 @@ class get_data():
         self._PWD,self._PLD,self._IL,self._LL,self._OP = [],[],[],[],[]
         if not os.path.exists(catchDirPath):#因为直接处理音频数据批稍微大一点显存就OOM了，所以改成将音频全都处理好存成缓存的形式
             os.makedirs(catchDirPath)
+        i = 0
         #使用的数据集不同缓存也不相同，如果还有其他变化情况也可以在缓存文件名称上反应出来
         subName = 'BS{}A{}P{}S{}T{}.npy'.format(self.batch_size,int(self.aishell),int(self.prime),int(self.stcmd),int(self.thchs30))
         if not os.path.exists(os.path.join(catchDirPath, "PWD_{}_0".format(subName))):
@@ -144,27 +145,22 @@ class get_data():
                 self._IL.append(input_length)
                 self._LL.append(label_length)
                 self._OP.append(np.zeros(pad_wav_data.shape[0], ))
+                if(len(self._PWD)>=5000):#每5000个保存一次，并清理掉list，防止一直占用内存
+                    np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),self._PWD)
+                    np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),self._PLD)
+                    np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),self._IL)
+                    np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i)),self._LL)
+                    np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i)),self._OP)
+                    self._PWD,self._PLD,self._IL,self._LL,self._OP = [],[],[],[],[]
+                    i+=1
 
-            for i in range(len(self._PWD)//10000+1):#分片保存，当缓存文件过大时可以考虑采用分片
-                if i == len(self._PWD):
-                    tempPWD=self._PWD[i:]
-                    tempPLD=self._PLD[i:]
-                    tempIL=self._IL[i:]
-                    tempLL=self._LL[i:]
-                    tempOP=self._OP[i:]
-                else:
-                    tempPWD=self._PWD[i*10000:(i+1)*10000]
-                    tempPLD=self._PLD[i*10000:(i+1)*10000]
-                    tempIL=self._IL[i*10000:(i+1)*10000]
-                    tempLL=self._LL[i*10000:(i+1)*10000]
-                    tempOP=self._OP[i*10000:(i+1)*10000]
-                np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),tempPWD)
-                np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),tempPLD)
-                np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),tempIL)
-                np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i)),tempLL)
-                np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i)),tempOP)
+            for len(self._PWD)>0:#分片保存，当缓存文件过大时可以考虑采用分片
+                np.save(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i)),self._PWD)
+                np.save(os.path.join(catchDirPath, "PLD_{}_{}.npy".format(subName,i)),self._PLD)
+                np.save(os.path.join(catchDirPath, "IL_{}_{}.npy".format(subName,i)),self._IL)
+                np.save(os.path.join(catchDirPath, "LL_{}_{}.npy".format(subName,i)),self._LL)
+                np.save(os.path.join(catchDirPath, "OP_{}_{}.npy".format(subName,i)),self._OP)
         else:
-            i = 0
             while True:#和分片保存对应的分片加载
                 if os.path.exists(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i))):
                     self._PWD.extend(np.load(os.path.join(catchDirPath, "PWD_{}_{}.npy".format(subName,i))))
@@ -368,4 +364,11 @@ def decode_ctc(num_result, num2word):
 	return r1, text
 
 if __name__ == "__main__":
-    pass
+    data_args = data_hparams()
+    data_args.data_type = 'train'
+    data_args.thchs30 = True
+    data_args.aishell = True
+    data_args.prime = True
+    data_args.stcmd = True
+    data_args.batch_size = 50#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+    train_data = get_data(data_args)
