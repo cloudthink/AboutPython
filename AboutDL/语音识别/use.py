@@ -126,5 +126,9 @@ if __name__ == "__main__":
     yysb = SpeechRecognition()
     data_args = utils.data_hparams()
     test = utils.get_data(data_args)
+
+    yysb.testPinyin(test.pny_lst[10])
+    print(test.han_lst[10])
+    
     for i in range(10):
         yysb.predict_file(test.wav_lst[i],test.pny_lst[i],test.han_lst[i])
