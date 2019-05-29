@@ -62,7 +62,7 @@ if flag:
     print('加载声学模型...')
     am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
 
-if False and flag and input('已有保存的声学模型，是否继续训练 yes/no:') == 'no':
+if flag and input('已有保存的声学模型，是否继续训练 yes/no:') == 'no':
     pass
 else:
     checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"), monitor='val_loss',save_best_only=True)
@@ -73,7 +73,7 @@ else:
     dev_batch = dev_data.get_am_batch()
     validate_step = 200#取N个验证的平均结果
 
-    history = am.ctc_model.fit_generator(batch, steps_per_epoch=10, epochs=1, callbacks=[checkpoint,eStop,tensbrd],
+    history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=[checkpoint,eStop,tensbrd],
         workers=1, use_multiprocessing=False,verbose=1,validation_data=dev_batch, validation_steps=validate_step)
 
     am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
