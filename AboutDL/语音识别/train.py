@@ -62,23 +62,24 @@ if flag:
     print('加载声学模型...')
     am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
 
-if flag and input('已有保存的声学模型，是否继续训练 yes/no:') == 'no':
+if False and flag and input('已有保存的声学模型，是否继续训练 yes/no:') == 'no':
     pass
 else:
     checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"), monitor='val_loss',save_best_only=True)
-    eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
+    eStop = EarlyStopping()#损失函数不再减小后patience轮停止训练
     #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
     tensbrd = TensorBoard(log_dir=os.path.join(utils.cur_path,'logs_am/tbLog'))
     batch = train_data.get_am_batch()#获取的是生成器
     dev_batch = dev_data.get_am_batch()
     validate_step = 200#取N个验证的平均结果
 
-    history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=[checkpoint,eStop,tensbrd],
+    history = am.ctc_model.fit_generator(batch, steps_per_epoch=10, epochs=1, callbacks=[checkpoint,eStop,tensbrd],
         workers=1, use_multiprocessing=False,verbose=1,validation_data=dev_batch, validation_steps=validate_step)
+
     am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
     #写入序列化的 PB 文件
     with keras.backend.get_session() as sess:
-        frozen_graph = freeze_session(sess, output_names=['the_inputs','the_labels'])
+        frozen_graph = freeze_session(sess, output_names=['the_inputs','dense_2/truediv'])
         graph_io.write_graph(frozen_graph, os.path.join(utils.cur_path,'logs_am'),'amModel.pb', as_text=False)
 
 

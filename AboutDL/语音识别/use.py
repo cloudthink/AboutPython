@@ -21,10 +21,10 @@ class SpeechRecognition():
                 graph_def = tf.GraphDef()
                 graph_def.ParseFromString(f.read())
                 self.AM_sess.graph.as_default()
-                tf.import_graph_def(graph_def, name='') # 导入计算图 # 需要有一个初始化的过程
-                self.AM_sess.run(tf.global_variables_initializer())
-            self.AM_x = self.AM_sess.graph.get_tensor_by_name('the_inputs') #此处的x一定要和之前保存时输入的名称一致！
-            self.AM_preds = self.AM_sess.graph.get_tensor_by_name('the_labels')
+                tf.import_graph_def(graph_def, name='') #导入计算图
+                self.AM_sess.run(tf.global_variables_initializer())#需要有一个初始化的过程
+            self.AM_x = self.AM_sess.graph.get_tensor_by_name('the_inputs:0') #此处的x一定要和之前保存时输入的名称一致！
+            self.AM_preds = self.AM_sess.graph.get_tensor_by_name('dense_2/truediv:0')
         else:
             from model_speech.cnn_ctc import Am, am_hparams
             am_args = am_hparams()
@@ -41,8 +41,8 @@ class SpeechRecognition():
                 self.sess.graph.as_default()
                 tf.import_graph_def(graph_def, name='') # 导入计算图 # 需要有一个初始化的过程
                 self.sess.run(tf.global_variables_initializer())
-            self.x = self.sess.graph.get_tensor_by_name('x') #此处的x一定要和之前保存时输入的名称一致！
-            self.preds = self.sess.graph.get_tensor_by_name('preds')
+            self.x = self.sess.graph.get_tensor_by_name('x:0') #此处的x一定要和之前保存时输入的名称一致！
+            self.preds = self.sess.graph.get_tensor_by_name('preds:0')
         else:#ckpt
             from model_language.transformer import Lm, lm_hparams
             lm_args = lm_hparams()
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     data_args = utils.data_hparams()
     test = utils.get_data(data_args)
 
-    yysb.testPinyin(test.pny_lst[10])
-    print(test.han_lst[10])
+    #yysb.testPinyin(' '.join(test.pny_lst[10]))#拼音的已经可以了
+    #print('原文汉字： {}'.format(test.han_lst[10]))
     
     for i in range(10):
-        yysb.predict_file(test.wav_lst[i],test.pny_lst[i],test.han_lst[i])
+        yysb.predict_file(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],test.han_lst[i])
