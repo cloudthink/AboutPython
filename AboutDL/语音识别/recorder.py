@@ -14,8 +14,7 @@ import queue
 import scipy
 
 CHUNK = 400 #25*1000/16000
-WIDTH = 2
-CHANNELS = 2
+CHANNELS = 1
 RATE = 16000
 
 
@@ -71,21 +70,19 @@ class MatplotlibWidget(QWidget):
         self.ani = animation.FuncAnimation(self.mpl.fig, self.plot_update,
                     init_func=self.plot_init,frames=1,interval=30,blit=True)
         # 其实animation方法的实质是开启了一个线程更新图像
-        
+
+        # 正态分布数组，与音频数据做相关运算可保证波形图两端固定
+        x = np.linspace(0, 400 - 1, 400, dtype=np.int64)
+        self.window = 0.54 - 0.46 * np.cos(2 * np.pi * (x) / (400 - 1))  # 汉明窗
+
         #麦克风开始获取音频
         self.p = pyaudio.PyAudio()
+        self.p.get_default_input_device_info()
         self.stream = self.p.open(format=pyaudio.paInt16,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                output=False,
-                frames_per_buffer=CHUNK,
+                channels=CHANNELS,rate=RATE,input=True,
+                output=False,frames_per_buffer=CHUNK,
                 stream_callback=self.callback)
         self.stream.start_stream()
-        
-        # 正态分布数组，与音频数据做相关运算可保证波形图两端固定
-        self.window = scipy.signal.hamming(CHUNK*2)
-        
         # 初始化线程
         self.ad_rdy_ev=threading.Event()#线程事件变量
         # 在线程t中添加函数read_audio_thead

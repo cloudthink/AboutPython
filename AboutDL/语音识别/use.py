@@ -125,10 +125,11 @@ class SpeechRecognition():
 if __name__ == "__main__":
     yysb = SpeechRecognition()
     data_args = utils.data_hparams()
+    data_args.data_type = 'test'
     test = utils.get_data(data_args)
 
-    #yysb.testPinyin(' '.join(test.pny_lst[10]))#拼音的已经可以了
-    #print('原文汉字： {}'.format(test.han_lst[10]))
+    #yysb.testPinyin(' '.join(test.pny_lst[100]))#拼音的已经可以了
+    #print('原文汉字： {}'.format(test.han_lst[100]))
     
-    for i in range(10):
+    for i in range(1):
         yysb.predict_file(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],test.han_lst[i])
