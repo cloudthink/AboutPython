@@ -126,7 +126,7 @@ class get_data():
                 end = begin + self.batch_size
                 sub_list = index_list[begin:end]
                 for index in sub_list:
-                    fbank = compute_fbank(os.path.join(self.data_path,self.wav_lst[index]))
+                    fbank = compute_fbank(file=os.path.join(self.data_path,self.wav_lst[index]))
                     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
                     pad_fbank[:fbank.shape[0], :] = fbank
                     label = self.pny2id(self.pny_lst[index], self.pny_vocab)
@@ -217,7 +217,7 @@ class get_data():
                 end = begin + self.batch_size
                 sub_list = index_list[begin:end]
                 for index in sub_list:
-                    fbank = compute_fbank(os.path.join(self.data_path,self.wav_lst[index]))
+                    fbank = compute_fbank(file=os.path.join(self.data_path,self.wav_lst[index]))
                     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
                     pad_fbank[:fbank.shape[0], :] = fbank
                     label = self.pny2id(self.pny_lst[index], self.pny_vocab)
@@ -312,10 +312,11 @@ def compute_mfcc(file):
 
 
 # 获取信号的时频图
-def compute_fbank(file,fs=None,wavsignal=None):
+def compute_fbank(file=None,fs=16000,wavsignal=None):
     x = np.linspace(0, 400 - 1, 400, dtype=np.int64)
     w = 0.54 - 0.46 * np.cos(2 * np.pi * (x) / (400 - 1))  # 汉明窗
-    fs, wavsignal = wav.read(file)
+    if wavsignal is None:
+        fs, wavsignal = wav.read(file)
     # wav波形 加时间窗以及时移10ms
     time_window = 25  # 单位ms
     wav_arr = np.array(wavsignal)
@@ -353,12 +354,15 @@ def label_padding(label_data_lst):
     return new_label_data_lst, label_lens
 
 # 获取音频文件的特征向量
-def get_wav_Feature(wav,label=None):
-    fbank = compute_fbank(wav)
+def get_wav_Feature(wav=None,wavsignal=None):
+    if wavsignal is None:
+        fbank = compute_fbank(file = wav)
+    else:
+        fbank = compute_fbank(wavsignal = wavsignal)
     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
     pad_fbank[:fbank.shape[0], :] = fbank
     pad_wav_data, input_length = wav_padding([pad_fbank])
-    return pad_wav_data, input_length
+    return pad_wav_data, input_length,fbank.flatten()
 
 # 错词率------------------------------------
 def GetEditDistance(str1, str2):
