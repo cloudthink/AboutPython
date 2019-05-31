@@ -30,7 +30,7 @@ class SpeechRecognition():
             am_args = am_hparams()
             am_args.vocab_size = len(self.train_data.pny_vocab)#这里有个坑，需要和训练时的长度一致，需要强烈关注！
             self.am = Am(am_args)
-            self.am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am/model.h5'))
+            self.am.ctc_model.load_weights(os.path.join(utils.cur_path,'logs_am','model.h5'))
 
         #print('加载语言模型中...')
         if tf_usePB:
@@ -77,11 +77,13 @@ class SpeechRecognition():
 
 
     def predict_file(self,file,pinyin=None,hanzi=None):
-        x,_ = utils.get_wav_Feature(file)
-        return self.predict(x,pinyin,hanzi)
+        x,_,_ = utils.get_wav_Feature(file=file)
+        return self.predict(x,pinyin,hanzi,True)
 
 
-    def predict(self,x,pinyin=None,hanzi=None):
+    def predict(self,x,pinyin=None,hanzi=None,come_from_file=False):
+        if come_from_file == False:#来自文件的就不用再处理了
+            x,_,_ = utils.get_wav_Feature(wavsignal=x)#需要将原始音频编码处理一下
         if K_usePB:
             result = self.AM_sess.run(self.AM_preds, {self.AM_x: x})
         else:
