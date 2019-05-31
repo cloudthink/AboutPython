@@ -1,139 +1,82 @@
-import sys
-import matplotlib
-matplotlib.use("Qt5Agg")
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.lines as line
 import matplotlib.animation as animation
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QWidget
-import numpy as np  
 import pyaudio
-import threading
-import queue
-import scipy
-
-CHUNK = 400 #25*1000/16000
-CHANNELS = 1
-RATE = 16000
+import wave
+import os
 
 
-class MyMplCanvas(FigureCanvas):
-    """FigureCanvas的最终的父类其实是QWidget。"""
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        # 配置中文显示
-        plt.rcParams['font.family'] = ['SimHei']  # 用来正常显示中文标签
-        plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
-        
-        # 此处初始化子图一定要在初始化函数之前
-        self.fig = plt.figure()
-        self.rt_ax = plt.subplot(111,xlim=(0,CHUNK*2), ylim=(-20000,20000))
-        plt.axis('off')
-        
-        FigureCanvas.__init__(self, self.fig)
-        self.setParent(parent)
+class SubplotAnimation(animation.TimedAnimation):
+    def __init__(self, path = None):
+        """
+        音频波形动态显示，实时显示波形，实时进行离散傅里叶变换分析频域
+        """
+        self.static = False
+        if path is not None and os.path.isfile(path):
+            self.static = True
+            self.stream = wave.open(path)
+            self.rate = self.stream.getparams()[2]
+            self.chunk = self.rate / 2
+            self.read = self.stream.readframes
+        else:
+            self.rate = 16000
+            self.chunk = 400
+            p = pyaudio.PyAudio()
+            self.stream = p.open(format=pyaudio.paInt16, channels=1, rate=self.rate,
+                            input=True, frames_per_buffer=self.chunk)
+            self.read = self.stream.read
 
-        '''定义FigureCanvas的尺寸策略，这部分的意思是设置FigureCanvas，使之尽可能的向外填充空间。'''
-        FigureCanvas.setSizePolicy(self,QSizePolicy.Expanding,QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-        
-    
-class MatplotlibWidget(QWidget):
-    def __init__(self, parent=None):
-        super(MatplotlibWidget, self).__init__(parent)
-        self.initUi()
-        self.initariateV()
-        
-    # 初始化成员变量
-    def initariateV(self):
-        self.p = None
-        self.q = queue.Queue()
-        self.t = None
-        self.ad_rdy_ev = None
-        self.stream = None
-        self.window = None
-        self.ani = None
-        self.rt_line = line.Line2D([],[])  # 直线对象
-        self.rt_x_data=np.arange(0,CHUNK*2,1) 
-        self.rt_data=np.full((CHUNK*2, ), 0) 
-        self.rt_line.set_xdata(self.rt_x_data)# 初始化横坐标
-        self.rt_line.set_ydata(self.rt_data) # 初始化纵坐标
-    
-    def initUi(self):
-        self.layout = QVBoxLayout(self)
-        self.mpl = MyMplCanvas(self, width=15, height=15, dpi=100)
-        self.layout.addWidget(self.mpl)
-    
-    # 开始录制触发函数
-    def startAudio(self, *args, **kwargs):
-        self.mpl.fig.suptitle('波形曲线')
-        self.ani = animation.FuncAnimation(self.mpl.fig, self.plot_update,
-                    init_func=self.plot_init,frames=1,interval=30,blit=True)
-        # 其实animation方法的实质是开启了一个线程更新图像
+        fig = plt.figure(num='Real-time wave')
+        ax1 = fig.add_subplot(2, 1, 1)
+        ax2 = fig.add_subplot(2, 1, 2)
 
-        # 正态分布数组，与音频数据做相关运算可保证波形图两端固定
-        x = np.linspace(0, 400 - 1, 400, dtype=np.int64)
-        self.window = 0.54 - 0.46 * np.cos(2 * np.pi * (x) / (400 - 1))  # 汉明窗
+        self.t = np.linspace(0, self.chunk - 1, self.chunk)
 
-        #麦克风开始获取音频
-        self.p = pyaudio.PyAudio()
-        self.p.get_default_input_device_info()
-        self.stream = self.p.open(format=pyaudio.paInt16,
-                channels=CHANNELS,rate=RATE,input=True,
-                output=False,frames_per_buffer=CHUNK,
-                stream_callback=self.callback)
-        self.stream.start_stream()
-        # 初始化线程
-        self.ad_rdy_ev=threading.Event()#线程事件变量
-        # 在线程t中添加函数read_audio_thead
-        self.t = threading.Thread(target=self.read_audio_thead,args=(self.q, self.stream, self.ad_rdy_ev)) 
-        self.t.start() # 线程开始运行
-        self.mpl.draw()
-    
-	# animation的更新函数
-    def plot_update(self, i):
-        self.rt_line.set_xdata(self.rt_x_data)
-        self.rt_line.set_ydata(self.rt_data)
-        return self.rt_line,
-    
-    # animation的初始化函数
-    def plot_init(self):
-        self.mpl.rt_ax.add_line(self.rt_line)
-        return self.rt_line,
-    
-    #pyaudio的回调函数
-    def callback(self, in_data, frame_count, time_info, status):
-        global ad_rdy_ev
-        self.q.put(in_data)
-        return (None, pyaudio.paContinue)
-    
-    
-    def read_audio_thead(self, q, stream, ad_rdy_ev):
-    # 获取队列中的数据
-        while stream.is_active():
-            self.ad_rdy_ev.wait(timeout=0.1) # 线程事件，等待0.1s
-            if not q.empty():
-                data=q.get()
-                while not q.empty(): #将多余的数据扔掉，不然队列会越来越长
-                    q.get()
-                self.rt_data = np.frombuffer(data,np.dtype('<i2'))
-                self.rt_data = self.rt_data * self.window #这样做的目的是将曲线的两端固定，以免出现曲线整体发生波动
-            self.ad_rdy_ev.clear()
-    
-    def endAudio(self):
-        # 停止获取音频信息
-        self.stream.stop_stream()
-        self.stream.close()
-        self.p.terminate()
-        # 清空队列
-        while not self.q.empty(): 
-            self.q.get()
-        # 重新初始化变量
-        self.initariateV()
-        
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ui = MatplotlibWidget()
-    ui.startAudio()
-    ui.show()
-    sys.exit(app.exec_())
+        ax1.set_xlabel('t')
+        ax1.set_ylabel('x')
+        self.line1, = ax1.plot([], [], lw=2)
+        ax1.set_xlim(0, self.chunk)
+        ax1.set_ylim(-15000, 15000)
+
+        ax2.set_xlabel('hz')
+        ax2.set_ylabel('y')
+        self.line2, = ax2.plot([], [], lw=2)
+        ax2.set_xlim(0, self.chunk)
+        ax2.set_ylim(-50, 100)
+
+        # 更新间隔/ms
+        interval = int(1000*self.chunk/self.rate)
+        animation.TimedAnimation.__init__(self, fig, interval=interval, blit=True)
+
+    def _draw_frame(self, framedata):
+        i = framedata
+        x = np.linspace(0, self.chunk - 1, self.chunk)
+        if self.static:
+            # 读取静态wav文件波形
+            y = np.fromstring(self.read(self.chunk/2 +1), dtype=np.int16)[:-1]
+        else:
+            # 实时读取声频
+            y = np.fromstring(self.read(self.chunk), dtype=np.int16)
+
+        # 画波形图
+        self.line1.set_data(x, y)
+
+        # 傅里叶变化
+        freqs = np.linspace(0, self.rate / 2, self.chunk / 2 + 1)
+        xf = np.fft.rfft(y) / self.chunk
+        xfp = 20 * np.log10(np.clip(np.abs(xf), 1e-20, 1e100))
+        self.line2.set_data(freqs, xfp)
+
+        self._drawn_artists = [self.line1, self.line2]
+
+    def new_frame_seq(self):
+        return iter(range(self.t.size))
+
+    def _init_draw(self):
+        lines = [self.line1, self.line2]
+        for l in lines:
+            l.set_data([], [])
+
+if __name__ == "__main__":
+    ani = SubplotAnimation()
+    plt.show()
