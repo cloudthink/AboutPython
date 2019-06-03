@@ -67,12 +67,12 @@ class SpeechRecognition():
         return res
 
 
-    def predicts(self,wavs,pinyin=None,hanzi=None):
+    def predicts(self,wavs,pinyin=None,hanzi=None,come_from_file=False):
         res = []
         for i,wav in enumerate(wavs):
             p = pinyin[i] if pinyin is not None else None
             h = hanzi[i] if hanzi is not None else None
-            res.append(self.predict(wav,p,h))
+            res.append(self.predict(wav,p,h,come_from_file))
         return res
 
 
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     data_args.data_type = 'test'
     test = utils.get_data(data_args)
 
-    #yysb.testPinyin(' '.join(test.pny_lst[100]))#拼音的已经可以了
-    #print('原文汉字： {}'.format(test.han_lst[100]))
+    yysb.testPinyin(' '.join(test.pny_lst[100]))#拼音的已经可以了
+    print('原文汉字： {}'.format(test.han_lst[100]))
     
-    for i in range(1):
+    for i in range(10):
         yysb.predict_file(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],test.han_lst[i])
