@@ -51,7 +51,7 @@ class SubplotAnimation(animation.TimedAnimation):
         ax2.set_ylabel('y')
         self.line2, = ax2.plot([], [], lw=2)
         ax2.set_xlim(0, self.chunk)
-        ax2.set_ylim(-50, 100)
+        ax2.set_ylim(-10, 50)
 
         interval = int(1000*self.chunk/self.rate)#更新间隔/ms
         animation.TimedAnimation.__init__(self, fig, interval=interval, blit=True)
@@ -62,33 +62,34 @@ class SubplotAnimation(animation.TimedAnimation):
         x = np.linspace(0, self.chunk - 1, self.chunk)
         y = np.fromstring(self.read(self.chunk), dtype=np.int16)
         #默认最短3秒为每段话的间隔 3*1000/25=120：只要说话内容间隔3秒以上即清除之前的
+        if len(y)==0:
+            return
         self.data.append(y)
         if np.array(self.data[-120::1]).flatten().max()<1000:
             if len(self.resHan)>0:#如果有语音识别结果则在最后清理之前输出（这个最后的输出是最完整的一句话）
-                print(self.resHan)
+                print(self.resHan)#todo:或者给需要的地方
             self.data.clear()
             self.resHan.clear()
-        elif len(self.data)%20 == 0:#每0.5秒调用一次
-            #本地方式
-            #pin,han = self.yysb.predict(np.array(self.data).flatten())
-            #print('识别拼音：{}'.format(pin))
-            #print('识别汉字：{}'.format(han))
-            #发送到服务器的方式
+        elif len(self.data)%40 == 0:#每1秒调用一次
             wav = np.array(self.data).flatten()
-            datas={'token':'bringspring', 'wavs':wav,'pre_type':'W'}
-            han = requests.post('http://127.0.0.1:20000/', datas)
-            han.encoding='utf-8'
-            print(han)
+
+            if True:#本地方式
+                pin,han = self.yysb.predict(wav)
+                print('识别拼音：{}'.format(pin))
+            else:#发送到服务器的方式
+                han = requests.post('http://127.0.0.1:20000/', {'token':'bringspring', 'wavs':wav,'pre_type':'W'})
+                han.encoding='utf-8'
+
+            print('识别汉字：{}'.format(han))
             self.resHan = han#每次都刷新识别结果，即最后一次的结果会是完整一句话
 
         # 画波形图(上面的)
         self.line1.set_data(x, y)
-        if False:
-            # 汉明窗结果（下面的）
-            freqs = np.linspace(0, self.rate // 2, self.chunk / 2 + 1)
-            _,_,xfp = utils.get_wav_Feature(wavsignal=y)
-            self.line2.set_data(freqs, xfp)
-            self._drawn_artists = [self.line1, self.line2]
+        # 汉明窗结果（下面的）
+        freqs = np.linspace(0, self.rate // 2, self.chunk / 2)
+        _,_,xfp = utils.get_wav_Feature(wavsignal=y)
+        self.line2.set_data(freqs, xfp)
+        self._drawn_artists = [self.line1, self.line2]
 
 
     def new_frame_seq(self):
