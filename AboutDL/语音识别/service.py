@@ -58,9 +58,8 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		
 		try:
 			if len(wavs)>0:
-				wavs = np.array([float(f) for f in wavs[0].split('%2C')])
-				wavs = wavs.reshape(1,len(wavs)//200,200,1)
-				r = self.recognize([wavs], pre_type)
+				wavs = np.array([int(w) for w in wavs])
+				r = self.recognize(wavs, pre_type)
 			else:
 				r = ''
 		except BaseException as ex:
@@ -73,9 +72,9 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		
 	def recognize(self, wavs,pre_type):
 		if pre_type == 'F':#传入的文件
-			_,han = yysb.predicts_file(wavs)[0]
+			_,han = yysb.predict_file(wavs)
 		elif pre_type == 'W':#传入的音频编码
-			_,han = yysb.predicts(wavs)[0]
+			_,han = yysb.predict(wavs)
 		return han
 
 import socket
