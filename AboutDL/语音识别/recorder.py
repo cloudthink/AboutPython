@@ -6,6 +6,7 @@ import wave
 import os
 import utils
 import use
+import requests
 
 
 class SubplotAnimation(animation.TimedAnimation):
@@ -68,9 +69,16 @@ class SubplotAnimation(animation.TimedAnimation):
             self.data.clear()
             self.resHan.clear()
         elif len(self.data)%20 == 0:#每0.5秒调用一次
-            pin,han = self.yysb.predict(np.array(self.data).flatten())
-            print('识别拼音：{}'.format(pin))
-            print('识别汉字：{}'.format(han))
+            #本地方式
+            #pin,han = self.yysb.predict(np.array(self.data).flatten())
+            #print('识别拼音：{}'.format(pin))
+            #print('识别汉字：{}'.format(han))
+            #发送到服务器的方式
+            wav = np.array(self.data).flatten()
+            datas={'token':'bringspring', 'wavs':wav,'pre_type':'W'}
+            han = requests.post('http://127.0.0.1:20000/', datas)
+            han.encoding='utf-8'
+            print(han)
             self.resHan = han#每次都刷新识别结果，即最后一次的结果会是完整一句话
 
         # 画波形图(上面的)
@@ -94,5 +102,5 @@ class SubplotAnimation(animation.TimedAnimation):
 
 
 if __name__ == "__main__":
-    ani = SubplotAnimation('/media/yangjinming/DATA/Dataset/THCTS30/test/D4_750.wav')
+    ani = SubplotAnimation('/media/yangjinming/DATA/Dataset/THCTS30/test/D4_751.wav')
     plt.show()
