@@ -68,7 +68,7 @@ class SubplotAnimation(animation.TimedAnimation):
 
         #默认最短3秒为每段话的间隔 3*1000/25*400=48000：只要说话内容间隔3秒以上即清除之前的
         check_wav = self.data[-48000::1]
-        if not special_flag and check_wav.max()<30 and check_wav.min()>-30:
+        if check_wav.max()<30 and check_wav.min()>-30:
             print('Start/Stop')
             if len(self.resHan)>0:#如果有语音识别结果则在最后清理之前输出（这个最后的输出是最完整的一句话）
                 print(self.resHan)#todo:或者给需要的地方

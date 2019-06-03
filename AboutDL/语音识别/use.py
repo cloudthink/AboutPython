@@ -9,11 +9,11 @@ K_usePB = True
 tf_usePB = True
 
 class SpeechRecognition():
-    def __init__(self):
+    def __init__(self,test_flag = True):
         # 0.准备解码所需字典，参数需和训练一致，也可以将字典保存到本地，直接进行读取
         data_args = utils.data_hparams()
         self.train_data = utils.get_data(data_args)
-
+        self.test_flag = test_flag
         #print('加载声学模型中...')
         if K_usePB:
             self.AM_sess = tf.Session()
@@ -58,24 +58,6 @@ class SpeechRecognition():
                 saver.restore(self.sess, lmPath)
 
 
-    def predicts_file(self,files,pinyin=None,hanzi=None):
-        res = []
-        for i,f in enumerate(files):
-            p = pinyin[i] if pinyin is not None else None
-            h = hanzi[i] if hanzi is not None else None
-            res.append(self.predict_file(f,p,h))
-        return res
-
-
-    def predicts(self,wavs,pinyin=None,hanzi=None,come_from_file=False):
-        res = []
-        for i,wav in enumerate(wavs):
-            p = pinyin[i] if pinyin is not None else None
-            h = hanzi[i] if hanzi is not None else None
-            res.append(self.predict(wav,p,h,come_from_file))
-        return res
-
-
     def predict_file(self,file,pinyin=None,hanzi=None):
         x,_,_ = utils.get_wav_Feature(wav=file)
         return self.predict(x,pinyin,hanzi,True)
@@ -92,9 +74,10 @@ class SpeechRecognition():
         # 将数字结果转化为文本结果
         _, text = utils.decode_ctc(result, self.train_data.pny_vocab)
         text = ' '.join(text)
-        print('识别拼音：', text)
-        if pinyin is not None:
-            print('原文拼音：', ' '.join(pinyin))
+        if self.test_flag:
+            print('识别拼音：', text)
+            if pinyin is not None:
+                print('原文拼音：', ' '.join(pinyin))
         with self.sess.as_default():
             text = text.strip('\n').split(' ')
             x = np.array([self.train_data.pny_vocab.index(pny) for pny in text])
@@ -104,13 +87,14 @@ class SpeechRecognition():
             else:
                 preds = self.sess.run(self.lm.preds, {self.lm.x: x})
             got = ''.join(self.train_data.han_vocab[idx] for idx in preds[0])
-            print('识别汉字：', got)
-            if hanzi is not None:
-                print('原文汉字：', hanzi)
+            if self.test_flag:
+                print('识别汉字：', got)
+                if hanzi is not None:
+                    print('原文汉字：', hanzi)
             return text,got
 
     
-    def testPinyin(self,pinyin):
+    def testPinyin(self,pinyin,hanzi=None):
         with self.sess.as_default():
             text = pinyin.strip('\n').split(' ')
             x = np.array([self.train_data.pny_vocab.index(pny) for pny in text])
@@ -120,7 +104,10 @@ class SpeechRecognition():
             else:
                 preds = self.sess.run(self.lm.preds, {self.lm.x: x})
             got = ''.join(self.train_data.han_vocab[idx] for idx in preds[0])
-            print('识别汉字：', got)
+            if self.test_flag:
+                print('识别汉字：', got)
+                if hanzi is not None:
+                    print('原文汉字：',hanzi))
             return got
 
 
@@ -131,8 +118,8 @@ if __name__ == "__main__":
     data_args.data_type = 'test'
     test = utils.get_data(data_args)
 
-    yysb.testPinyin(' '.join(test.pny_lst[100]))#拼音的已经可以了
-    print('原文汉字： {}'.format(test.han_lst[100]))
-    
+    #yysb.testPinyin(' '.join(test.pny_lst[100],test.han_lst[100]))#拼音的已经可以了
+    #yysb.predict_file(os.path.join(test.data_path,test.wav_lst[66]),test.pny_lst[66],test.han_lst[66])
+
     for i in range(10):
         yysb.predict_file(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],test.han_lst[i])
