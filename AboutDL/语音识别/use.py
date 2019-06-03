@@ -107,7 +107,7 @@ class SpeechRecognition():
             if self.test_flag:
                 print('识别汉字：', got)
                 if hanzi is not None:
-                    print('原文汉字：',hanzi))
+                    print('原文汉字：', hanzi)
             return got
 
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     data_args.data_type = 'test'
     test = utils.get_data(data_args)
 
-    #yysb.testPinyin(' '.join(test.pny_lst[100],test.han_lst[100]))#拼音的已经可以了
+    yysb.testPinyin(' '.join(test.pny_lst[100],test.han_lst[100]))#拼音的已经可以了
     #yysb.predict_file(os.path.join(test.data_path,test.wav_lst[66]),test.pny_lst[66],test.han_lst[66])
 
     for i in range(10):
