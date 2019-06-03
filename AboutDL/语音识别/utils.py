@@ -78,14 +78,14 @@ class get_data():
             tmp_pny,tmp_han = self.make_all_file()
             self.pny_vocab = self.mk_pny_vocab(tmp_pny)#拼音字典
             self.SaveCatch('pny_vocab',self.pny_vocab,datatype,sub_path)
-        print('拼音字典大小：{}'.format(len(self.pny_vocab)))
+        #print('拼音字典大小：{}'.format(len(self.pny_vocab)))#1297
 
         print('生成/加载 汉字字典...')
         self.han_vocab = self.LoadCatch('han_vocab',datatype,sub_path)
         if self.han_vocab is None:
             self.han_vocab = self.mk_han_vocab(tmp_han)#和拼音字典是不等长的
             self.SaveCatch('han_vocab',self.han_vocab,datatype,sub_path)
-        print('汉字字典大小：{}'.format(len(self.han_vocab)))
+        #print('汉字字典大小：{}'.format(len(self.han_vocab)))#6314
 
 
     def LoadCatch(self,kindName,datatype,path):

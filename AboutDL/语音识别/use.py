@@ -77,7 +77,7 @@ class SpeechRecognition():
 
 
     def predict_file(self,file,pinyin=None,hanzi=None):
-        x,_,_ = utils.get_wav_Feature(file=file)
+        x,_,_ = utils.get_wav_Feature(wav=file)
         return self.predict(x,pinyin,hanzi,True)
 
 
