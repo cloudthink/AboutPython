@@ -84,6 +84,7 @@ class SpeechRecognition():
     def predict(self,x,pinyin=None,hanzi=None,come_from_file=False):
         if come_from_file == False:#来自文件的就不用再处理了
             x,_,_ = utils.get_wav_Feature(wavsignal=x)#需要将原始音频编码处理一下
+            
         if K_usePB:
             result = self.AM_sess.run(self.AM_preds, {self.AM_x: x})
         else:

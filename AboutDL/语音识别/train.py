@@ -18,7 +18,7 @@ data_args.thchs30 = True
 data_args.aishell = True
 data_args.prime = True
 data_args.stcmd = True
-data_args.batch_size = 16#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -28,7 +28,7 @@ data_args.thchs30 = True
 data_args.aishell = True
 data_args.prime = True
 data_args.stcmd = True
-data_args.batch_size = 16
+data_args.batch_size = 2
 dev_data = utils.get_data(data_args)
 
 
@@ -83,6 +83,7 @@ def train_am():
 
 # 2.语言模型训练-------------------------------------------
 def train_lm():
+    global epochs
     from model_language.transformer import Lm, lm_hparams
     import numpy as np
     lm_args = lm_hparams()
