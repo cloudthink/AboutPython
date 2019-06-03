@@ -8,3 +8,4 @@ AboutDL/语音识别/checkpoint/model_*
 AboutDL/语音识别/logs_lm/model_*.data-00000-of-00001
 AboutDL/语音识别/logs_lm/model_*.index
 AboutDL/语音识别/logs_lm/model_*.meta
+AboutDL/语音识别TF2.0*
