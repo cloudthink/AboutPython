@@ -1,12 +1,83 @@
+import os
+import requests
+import threading
+import tkinter
+import tkinter.filedialog
+import tkinter.messagebox
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import pyaudio
 import wave
-import os
+
 import utils
 import use
-import requests
+
+
+class FileRecord():
+    def __init__(self,CHUNK=400,RATE=16000):
+        self.filename = None
+        self.allowRecording = False
+        self.CHUNK = CHUNK
+        self.RATE = RATE
+        self.intUI()
+        self.root.protocol('WM_DELETE_WINDOW',self.close)
+        self.root.mainloop()
+
+
+    def intUI(self):
+        self.root = tkinter.Tk()
+        self.root.title('wav音频录制')
+        x = (self.root.winfo_screenwidth()-200)//2
+        y = (self.root.winfo_screenheight()-140)//2
+        self.root.geometry('200x140+{}+{}'.format(x,y))
+        self.root.resizable(False,False)
+        self.btStart = tkinter.Button(self.root,text='Start',command=self.start)
+        self.btStart.place(x=50,y=20,width=100,height=40)
+        self.btStop = tkinter.Button(self.root,text='Stop',command=self.stop)
+        self.btStop.place(x=50,y=80,width=100,height=40)
+
+
+    def start(self):
+        self.filename = tkinter.filedialog.asksaveasfilename(filetypes=[('Sound File','*.wav')])
+        if not self.filename:
+            return
+        if not self.filename.endswith('.wav'):
+            self.filename = self.filename+'.wav'
+        self.allowRecording = True
+        self.root.title('正在录音...')
+        threading.Thread(target=self.record).start()
+
+
+    def stop(self):
+        self.allowRecording = False
+        self.root.title('wav音频录制')
+
+    
+    def close(self):
+        if self.allowRecording:
+            tkinter.messagebox.showerror('正在录音','请先停止录音')
+            return
+        self.root.destroy()
+
+
+    def record(self):
+        p = pyaudio.PyAudio()
+        stream = p.open(format = pyaudio.paInt16,channels=1,rate = self.RATE,
+                        input = True,frames_per_buffer=self.CHUNK)
+        wf = wave.open(self.filename,'wb')
+        wf.setnchannels(1)
+        wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(self.RATE)
+        while self.allowRecording:#从录音设备读取数据，直接写入wav文件
+            data = stream.read(self.CHUNK)
+            wf.writeframes(data)
+        wf.close()
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        self.filename = None
+
 
 
 class SubplotAnimation(animation.TimedAnimation):
@@ -105,6 +176,8 @@ class SubplotAnimation(animation.TimedAnimation):
             l.set_data([], [])
 
 
+
 if __name__ == "__main__":
-    ani = SubplotAnimation('/media/yangjinming/DATA/Dataset/THCTS30/dev/A11_101.wav')
-    plt.show()
+    #ani = SubplotAnimation('/media/yangjinming/DATA/Dataset/THCTS30/dev/A11_101.wav')
+    #plt.show()
+    rec = FileRecord()
