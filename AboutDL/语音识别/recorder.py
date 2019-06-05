@@ -30,12 +30,16 @@ class FileRecord():
         self.root.title('wav音频录制')
         x = (self.root.winfo_screenwidth()-200)//2
         y = (self.root.winfo_screenheight()-140)//2
-        self.root.geometry('200x140+{}+{}'.format(x,y))
+        self.root.geometry('330x140+{}+{}'.format(x,y))
         self.root.resizable(False,False)
         self.btStart = tkinter.Button(self.root,text='Start',command=self.start)
         self.btStart.place(x=50,y=20,width=100,height=40)
         self.btStop = tkinter.Button(self.root,text='Stop',command=self.stop)
         self.btStop.place(x=50,y=80,width=100,height=40)
+        self.btShowWav = tkinter.Button(self.root,text='Real-Time Wav',command=self.ShowWav)
+        self.btShowWav.place(x=180,y=20,width=100,height=40)
+        self.btCloseWav = tkinter.Button(self.root,text='Close Wav',command=self.CloseWav)
+        self.btCloseWav.place(x=180,y=80,width=100,height=40)
 
 
     def start(self):
@@ -52,6 +56,19 @@ class FileRecord():
     def stop(self):
         self.allowRecording = False
         self.root.title('wav音频录制')
+
+
+    def ShowWav(self):
+        self.ani = SubplotAnimation()
+        plt.show()
+
+
+    def CloseWav(self):
+        try:
+            self.ani = None
+            plt.close()
+        except:
+            pass
 
     
     def close(self):
