@@ -81,8 +81,9 @@ class FileRecord():
 
 
 class SubplotAnimation(animation.TimedAnimation):
-    def __init__(self, path = None):
+    def __init__(self, path = None,serviceAddress='http://127.0.0.1:20000/'):
         self.yysb = use.SpeechRecognition()
+        self.httpService = serviceAddress
         #音频波形动态显示，实时显示波形，实时进行离散傅里叶变换分析频域
         if path is not None and os.path.isfile(path):
             self.stream = wave.open(path)
@@ -98,13 +99,18 @@ class SubplotAnimation(animation.TimedAnimation):
             self.read = self.stream.read
 
         '''
-        self.data说明：用来记录一整段话的数据，当听到明显声音开始填充，每次都把整个的内容送给语音识别，以其达到效果为：
+        self.data说明：
+        按时调用时：
+        用来记录一整段话的数据，当听到明显声音开始填充，每次都把整个的内容送给语音识别，以期达到效果为：
         你
         你好
         你好啊
         当一个指定时间内没有明显声音时则清空
+        自动判断启停时：
+        从判断开始的数据开始记录，直到判断停止说话准备清空数据前调用一次API，效果：
+        你好啊
         '''
-        self.data=np.array([])
+        self.data=np.ndarray(shape=(0), dtype=np.int16)
         self.resHan=[]#语音识别结果，类型待定
 
         fig = plt.figure(num='Real-time wave')
@@ -126,6 +132,18 @@ class SubplotAnimation(animation.TimedAnimation):
         animation.TimedAnimation.__init__(self, fig, interval=interval, blit=True)
 
 
+    def _valid(self,check_wav):
+        '''
+        判断是否开始、停止记录声音的方法，返回布尔结果
+        if处可能需要根据情况设计更好的判断条件
+        当返回为True时，开始、停止记录声音，False则记录声音
+        '''
+        if check_wav.max()<30 and check_wav.min()>-30:
+            return True
+        else:
+            return False
+
+
     def _draw_frame(self, framedata):
         x = np.linspace(0, self.chunk - 1, self.chunk)
         y = np.fromstring(self.read(self.chunk), dtype=np.int16)
@@ -133,30 +151,38 @@ class SubplotAnimation(animation.TimedAnimation):
         if len(y) == 0:
             return
         if len(y)<self.chunk:
-            y = np.pad(y,(0,self.chunk-len(y)),'constant')#数据维度需要和坐标维度一致
             special_flag = True
         self.data = np.append(self.data,np.array(y))
 
         #默认最短3秒为每段话的间隔 3*1000/25*400=48000：只要说话内容间隔3秒以上即清除之前的
-        check_wav = self.data[-48000::1]
-        if check_wav.max()<30 and check_wav.min()>-30:
+        if special_flag or self._valid(self.data[-48000::1]):
             print('Start/Stop')
-            if len(self.resHan)>0:#如果有语音识别结果则在最后清理之前输出（这个最后的输出是最完整的一句话）
-                print(self.resHan)#todo:或者给需要的地方
+            #修改语音识别调用方式：这种是在开始记录有效声音后直到准备清理数据时最后用完整数据调用一次
+            if len(self.data)>self.chunk:#大于chunk是每次都添加了一个chunk的数据，下面才清理，所以满足大于chunk条件则说明是在结束时调用
+                if True:#本地方式
+                    pin,han = self.yysb.predict(self.data)
+                    print('识别拼音：{}'.format(pin))
+                else:#发送到服务器的方式
+                    han = requests.post(self.httpService, {'token':'bringspring', 'wavs':self.data,'pre_type':'W'})
+                    han.encoding='utf-8'
+                self.resHan = han#记录用
+                print('识别汉字：{}'.format(han))#todo:或者给需要的地方
+
             self.data.clear()
             self.resHan.clear()
+        '''
         elif len(self.data)%16000 == 0 or special_flag:#每1秒调用一次
             if True:#本地方式
                 pin,han = self.yysb.predict(self.data)
                 print('识别拼音：{}'.format(pin))
             else:#发送到服务器的方式
-                han = requests.post('http://127.0.0.1:20000/', {'token':'bringspring', 'wavs':self.data,'pre_type':'W'})
+                han = requests.post(self.httpService, {'token':'bringspring', 'wavs':self.data,'pre_type':'W'})
                 han.encoding='utf-8'
-
             self.resHan = han#每次都刷新识别结果，即最后一次的结果会是完整一句话
             if special_flag:
                 print('识别汉字：{}'.format(han))#todo:或者给需要的地方
-
+        '''
+        y = np.pad(y,(0,self.chunk-len(y)),'constant')#数据维度需要和坐标维度一致
         # 波形图(上面的)
         self.line1.set_data(x, y)
         # 时频图（下面的）
