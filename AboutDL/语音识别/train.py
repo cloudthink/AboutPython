@@ -4,7 +4,6 @@ import utils
 from tqdm import tqdm
 import keras
 from keras.callbacks import ModelCheckpoint,EarlyStopping,TensorBoard
-from tensorflow.python.framework import graph_io
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth=True   #不全部占满显存, 按需分配
@@ -18,7 +17,7 @@ data_args.thchs30 = True
 data_args.aishell = True
 data_args.prime = True
 data_args.stcmd = True
-data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 3#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -36,25 +35,12 @@ batch_num = len(train_data.wav_lst) // train_data.batch_size
 epochs = 100#两个模型都加入了提前终止判断，可以大一些，反正又到不了
 
 # 1.声学模型训练-----------------------------------
-def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=False):
-    graph = session.graph
-    with graph.as_default():
-        freeze_var_names = list(set(v.op.name for v in tf.global_variables()).difference(keep_var_names or []))
-        output_names = output_names or []
-        output_names += [v.op.name for v in tf.global_variables()]
-        input_graph_def = graph.as_graph_def()
-        if clear_devices:
-            for node in input_graph_def.node:
-                node.device = ""
-        frozen_graph = tf.compat.v1.graph_util.convert_variables_to_constants(session, input_graph_def,output_names, freeze_var_names)
-        return frozen_graph
-
 def train_am():
     from model_speech.cnn_ctc import Am, am_hparams
     am_args = am_hparams()
     am_args.vocab_size = len(train_data.pny_vocab)
     am_args.gpu_nums = 1
-    am_args.lr = 0.0008
+    am_args.lr = 0.0005
     am_args.is_training = True
     am = Am(am_args)
 
@@ -64,21 +50,23 @@ def train_am():
 
     checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"),
         monitor='val_loss',save_best_only=True)
-    eStop = EarlyStopping()#损失函数不再减小后patience轮停止训练
+    eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
     #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
     tensbrd = TensorBoard(log_dir=os.path.join(utils.cur_path,'logs_am','tbLog'))
     batch = train_data.get_am_batch()#获取的是生成器
     dev_batch = dev_data.get_am_batch()
     validate_step = 200#取N个验证的平均结果
 
-    history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=[checkpoint,eStop,tensbrd],
+    history = am.ctc_model.fit_generator(batch, steps_per_epoch=batch_num, epochs=epochs, callbacks=[eStop,checkpoint],
             workers=1, use_multiprocessing=False,verbose=1,validation_data=dev_batch, validation_steps=validate_step)
 
     am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am','model.h5'))
     #写入序列化的 PB 文件
     with keras.backend.get_session() as sess:
-        frozen_graph = freeze_session(sess, output_names=['the_inputs','dense_2/truediv'])
-        graph_io.write_graph(frozen_graph, os.path.join(utils.cur_path,'logs_am'),'amModel.pb', as_text=False)
+        constant_graph = tf.compat.v1.graph_util.convert_variables_to_constants(sess,
+                            sess.graph_def,output_node_names=['the_inputs','dense_2/truediv'])
+        with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_am','amModel.pb'), mode='wb') as f:
+            f.write(constant_graph.SerializeToString())
 
 
 # 2.语言模型训练-------------------------------------------
