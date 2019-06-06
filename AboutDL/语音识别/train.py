@@ -104,7 +104,7 @@ def train_lm():
             add_num = int(latest.split('_')[-1])
             saver.restore(sess, latest)
         #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_lm/tensorboard --host=127.0.0.1
-        writer = tf.summary.FileWriter(os.path.join(utils.cur_path,'logs_lm','tensorboard'), tf.get_default_graph())
+        #writer = tf.summary.FileWriter(os.path.join(utils.cur_path,'logs_lm','tensorboard'), tf.get_default_graph())
         for k in range(epochs):
             total_loss = 0
             batch = train_data.get_lm_batch()
@@ -115,7 +115,7 @@ def train_lm():
                 total_loss += cost
                 if (k * batch_num + i) % 10 == 0:
                     rs=sess.run(merged, feed_dict=feed)
-                    writer.add_summary(rs, k * batch_num + i)
+                    #writer.add_summary(rs, k * batch_num + i)
             avg_loss = total_loss/batch_num
             print('步数', k+1, ': 平均损失值 = ', avg_loss)
 
@@ -126,7 +126,7 @@ def train_lm():
                     break
         
         saver.save(sess, os.path.join(utils.cur_path,'logs_lm','model_%d' % (epochs + add_num)))
-        writer.close()
+        #writer.close()
         # 写入序列化的 PB 文件
         constant_graph = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['x','y','preds'])
         with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_lm','lmModel.pb'), mode='wb') as f:
