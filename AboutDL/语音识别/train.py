@@ -77,7 +77,7 @@ def train_am(x=None,y=None,fit_epoch=10):
                             sess.graph_def,output_node_names=['the_inputs','dense_2/truediv'])
     with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_am','amModel.pb'), mode='wb') as f:
         f.write(constant_graph.SerializeToString())
-    if x is not None:
+    if x is None:
         sess.close()
 
 
