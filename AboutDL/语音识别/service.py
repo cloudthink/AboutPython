@@ -4,10 +4,10 @@
 import http.server
 import urllib
 import keras
-import use
+import utils
 import numpy as np
 
-yysb = use.SpeechRecognition()
+yysb = utils.SpeechRecognition(test_flag=False)
 class TestHTTPHandle(http.server.BaseHTTPRequestHandler):  
 	def setup(self):
 		self.request.settimeout(10)

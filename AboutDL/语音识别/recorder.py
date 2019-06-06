@@ -11,7 +11,6 @@ import pyaudio
 import wave
 
 import utils
-import use
 
 
 class FileRecord():
@@ -89,7 +88,7 @@ class FileRecord():
 
 class SubplotAnimation(animation.TimedAnimation):
     def __init__(self, path = None,serviceAddress='http://127.0.0.1:20000/'):
-        self.yysb = use.SpeechRecognition()
+        self.yysb = utils.SpeechRecognition(test_flag=True)
         self.httpService = serviceAddress
         #音频波形动态显示，实时显示波形，实时进行离散傅里叶变换分析频域
         if path is not None and os.path.isfile(path):
@@ -146,7 +145,9 @@ class SubplotAnimation(animation.TimedAnimation):
         if处可能需要根据情况设计更好的判断条件
         当返回为True时，开始、停止记录声音，False则记录声音
         '''
-        if check_wav.max()<1200 and check_wav.min()>-1200:
+        check = np.array([abs(x) for x in check_wav]).sum()/400
+        #if check_wav.max()<1200 and check_wav.min()>-1200:#未听到声音
+        if check > 10:
             return True
         else:
             return False
@@ -162,10 +163,10 @@ class SubplotAnimation(animation.TimedAnimation):
             y = np.pad(y,(0,self.chunk-len(y)),'constant')#数据维度需要和坐标维度一致
             special_flag = True
         self.data.append(y)
-        #默认最短3秒为每段话的间隔 3*1000/25*400=48000：只要说话内容间隔3秒以上即清除之前的
-        if special_flag or self._valid(np.array(self.data[-80::1]).flatten()):
+        #默认最短3秒为每段话的间隔 3*1000/25=120：只要说话内容间隔3秒以上即清除之前的
+        if special_flag or self._valid(np.array(self.data[-120::1]).flatten()):
             #修改语音识别调用方式：这种是在开始记录有效声音后直到准备清理数据时最后用完整数据调用一次
-            if len(self.data)>6:
+            if len(self.data)>3:
                 wav = np.array(self.data).flatten()
                 if True:#本地方式
                     pin,han = self.yysb.predict(wav)
@@ -176,7 +177,7 @@ class SubplotAnimation(animation.TimedAnimation):
                 self.resHan.append(han)#记录用
                 #print('识别汉字：{}'.format(han))#todo:或者给需要的地方
 
-            self.data=self.data[-5:]
+            self.data=self.data[-2:]
             self.resHan.clear()
         '''
         elif len(self.data)%16000 == 0 or special_flag:#每1秒调用一次
@@ -211,6 +212,6 @@ class SubplotAnimation(animation.TimedAnimation):
 
 
 if __name__ == "__main__":
-    ani = SubplotAnimation()
-    plt.show()
-    #rec = FileRecord()
+    #ani = SubplotAnimation()
+    #plt.show()
+    rec = FileRecord()
