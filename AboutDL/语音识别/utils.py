@@ -2,7 +2,6 @@ import os
 import difflib
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.platform import gfile
 import scipy.io.wavfile as wav
 from tqdm import tqdm
 from scipy.fftpack import fft
@@ -169,15 +168,30 @@ def get_wav_Feature(filePath=None,wavsignal=None):
     return pad_wav_data, input_length,fbank.flatten()
 
 
+def ctc_len(label):
+    add_len = 0
+    label_len = len(label)
+    for i in range(label_len - 1):
+        if label[i] == label[i + 1]:
+            add_len += 1
+    return label_len + add_len
+
+
 # 实时声音转换成训练样本------------------------------------
 #wav：直接是解码后的音频，label：对应的汉语拼音，型如['ni3','hao3']
-def real_time2data(wav,label):
-    fbank = compute_fbank(wavsignal = wav)
-    pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
-    pad_fbank[:fbank.shape[0], :] = fbank
-    label = pny2id(label, pny_vocab)
-    pad_wav_data, input_length = wav_padding([pad_fbank])
-    pad_label_data, label_length = label_padding([label])
+def real_time2data(wav,label_list):
+    wav_data_lst,label_data_lst = [],[]
+    for i,w in enumerate(wav):
+        fbank = compute_fbank(wavsignal = w)
+        pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
+        pad_fbank[:fbank.shape[0], :] = fbank
+        label = pny2id(label_list[i], pny_vocab)
+        label_ctc_len = ctc_len(label)
+        if pad_fbank.shape[0] // 8 >= label_ctc_len:
+            wav_data_lst.append(pad_fbank)
+            label_data_lst.append(label)
+    pad_wav_data, input_length = wav_padding(wav_data_lst)
+    pad_label_data, label_length = label_padding(label_data_lst)
     inputs = {'the_inputs': pad_wav_data,'the_labels': pad_label_data,
             'input_length': input_length,'label_length': label_length,}
     outputs = {'ctc': np.zeros(pad_wav_data.shape[0], )}
@@ -288,7 +302,7 @@ class get_data():
                     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
                     pad_fbank[:fbank.shape[0], :] = fbank
                     label = pny2id(self.pny_lst[index], pny_vocab)
-                    label_ctc_len = self.ctc_len(label)
+                    label_ctc_len = ctc_len(label)
                     if pad_fbank.shape[0] // 8 >= label_ctc_len:
                         wav_data_lst.append(pad_fbank)
                         label_data_lst.append(label)
@@ -312,15 +326,6 @@ class get_data():
             yield input_batch, label_batch
 
 
-    def ctc_len(self, label):
-        add_len = 0
-        label_len = len(label)
-        for i in range(label_len - 1):
-            if label[i] == label[i + 1]:
-                add_len += 1
-        return label_len + add_len
-
-
 
 class SpeechRecognition():
     def __init__(self,test_flag = True):
@@ -329,7 +334,7 @@ class SpeechRecognition():
         #print('加载声学模型中...')
         if K_usePB:
             self.AM_sess = tf.Session()
-            with gfile.FastGFile(os.path.join(cur_path,'logs_am','amModel.pb'), 'rb') as f:#加载模型
+            with tf.gfile.GFile(os.path.join(cur_path,'logs_am','amModel.pb'), 'rb') as f:#加载模型
                 graph_def = tf.GraphDef()
                 graph_def.ParseFromString(f.read())
                 self.AM_sess.graph.as_default()
@@ -347,7 +352,7 @@ class SpeechRecognition():
         #print('加载语言模型中...')
         if tf_usePB:
             self.sess = tf.Session()
-            with gfile.FastGFile(os.path.join(cur_path,'logs_lm','lmModel.pb'), 'rb') as f:#加载模型
+            with tf.gfile.GFile(os.path.join(cur_path,'logs_lm','lmModel.pb'), 'rb') as f:#加载模型
                 graph_def = tf.GraphDef()
                 graph_def.ParseFromString(f.read())
                 self.sess.graph.as_default()
