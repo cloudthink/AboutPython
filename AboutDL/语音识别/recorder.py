@@ -37,9 +37,7 @@ class FileRecord():
         self.btStop = tkinter.Button(self.root,text='Stop',command=self.stop)
         self.btStop.place(x=50,y=80,width=100,height=40)
         self.btShowWav = tkinter.Button(self.root,text='Real-Time Wav',command=self.ShowWav)
-        self.btShowWav.place(x=180,y=20,width=100,height=40)
-        self.btCloseWav = tkinter.Button(self.root,text='Close Wav',command=self.CloseWav)
-        self.btCloseWav.place(x=180,y=80,width=100,height=40)
+        self.btShowWav.place(x=180,y=50,width=100,height=40)
 
 
     def start(self):
@@ -61,14 +59,6 @@ class FileRecord():
     def ShowWav(self):
         self.ani = SubplotAnimation()
         plt.show()
-
-
-    def CloseWav(self):
-        try:
-            self.ani = None
-            plt.close()
-        except:
-            pass
 
     
     def close(self):
@@ -127,7 +117,8 @@ class SubplotAnimation(animation.TimedAnimation):
         从判断开始的数据开始记录，直到判断停止说话准备清空数据前调用一次API，效果：
         你好啊
         '''
-        self.data=np.ndarray(shape=(0), dtype=np.int16)
+        #self.data=np.ndarray(shape=(0), dtype=np.int16)
+        self.data = []
         self.resHan=[]#语音识别结果，类型待定
 
         fig = plt.figure(num='Real-time wave')
@@ -155,7 +146,7 @@ class SubplotAnimation(animation.TimedAnimation):
         if处可能需要根据情况设计更好的判断条件
         当返回为True时，开始、停止记录声音，False则记录声音
         '''
-        if check_wav.max()<30 and check_wav.min()>-30:
+        if check_wav.max()<1200 and check_wav.min()>-1200:
             return True
         else:
             return False
@@ -168,24 +159,24 @@ class SubplotAnimation(animation.TimedAnimation):
         if len(y) == 0:
             return
         if len(y)<self.chunk:
+            y = np.pad(y,(0,self.chunk-len(y)),'constant')#数据维度需要和坐标维度一致
             special_flag = True
-        self.data = np.append(self.data,np.array(y))
-
+        self.data.append(y)
         #默认最短3秒为每段话的间隔 3*1000/25*400=48000：只要说话内容间隔3秒以上即清除之前的
-        if special_flag or self._valid(self.data[-48000::1]):
-            print('Start/Stop')
+        if special_flag or self._valid(np.array(self.data[-80::1]).flatten()):
             #修改语音识别调用方式：这种是在开始记录有效声音后直到准备清理数据时最后用完整数据调用一次
-            if len(self.data)>self.chunk:#大于chunk是每次都添加了一个chunk的数据，下面才清理，所以满足大于chunk条件则说明是在结束时调用
+            if len(self.data)>6:
+                wav = np.array(self.data).flatten()
                 if True:#本地方式
-                    pin,han = self.yysb.predict(self.data)
-                    print('识别拼音：{}'.format(pin))
+                    pin,han = self.yysb.predict(wav)
+                    #print('识别拼音：{}'.format(pin))
                 else:#发送到服务器的方式
-                    han = requests.post(self.httpService, {'token':'bringspring', 'wavs':self.data,'pre_type':'W'})
+                    han = requests.post(self.httpService, {'token':'bringspring', 'wavs':wav,'pre_type':'W'})
                     han.encoding='utf-8'
-                self.resHan = han#记录用
-                print('识别汉字：{}'.format(han))#todo:或者给需要的地方
+                self.resHan.append(han)#记录用
+                #print('识别汉字：{}'.format(han))#todo:或者给需要的地方
 
-            self.data.clear()
+            self.data=self.data[-5:]
             self.resHan.clear()
         '''
         elif len(self.data)%16000 == 0 or special_flag:#每1秒调用一次
@@ -199,7 +190,6 @@ class SubplotAnimation(animation.TimedAnimation):
             if special_flag:
                 print('识别汉字：{}'.format(han))#todo:或者给需要的地方
         '''
-        y = np.pad(y,(0,self.chunk-len(y)),'constant')#数据维度需要和坐标维度一致
         # 波形图(上面的)
         self.line1.set_data(x, y)
         # 时频图（下面的）
@@ -221,6 +211,6 @@ class SubplotAnimation(animation.TimedAnimation):
 
 
 if __name__ == "__main__":
-    #ani = SubplotAnimation('/media/yangjinming/DATA/Dataset/THCTS30/dev/A11_101.wav')
-    #plt.show()
-    rec = FileRecord()
+    ani = SubplotAnimation()
+    plt.show()
+    #rec = FileRecord()
