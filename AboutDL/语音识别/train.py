@@ -4,7 +4,7 @@ import utils
 from tqdm import tqdm
 import keras
 from keras.callbacks import ModelCheckpoint,EarlyStopping,TensorBoard
-
+import numpy as np
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True   #不全部占满显存, 按需分配
 keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
@@ -35,7 +35,7 @@ batch_num = len(train_data.wav_lst) // train_data.batch_size
 epochs = 100#两个模型都加入了提前终止判断，可以大一些，反正又到不了
 
 # 1.声学模型训练-----------------------------------
-def train_am(x=None,y=None):
+def train_am(x=None,y=None,fit_epoch=10):
     from model_speech.cnn_ctc import Am, am_hparams
     am_args = am_hparams()
     am_args.vocab_size = len(utils.pny_vocab)
@@ -54,9 +54,14 @@ def train_am(x=None,y=None):
     #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
     #tensbrd = TensorBoard(log_dir=os.path.join(utils.cur_path,'logs_am','tbLog'))
 
-    if not x:#利用实时声音训练调整模型，使定制化
-        x,y = utils.real_time2data(x,y)
-        am.ctc_model.fit(x=x,y=y,batch_size=1,epochs=10)
+    if x is not None:#利用实时声音训练调整模型，使定制化
+        size=1
+        if type(x) == np.ndarray:
+            x,y = utils.real_time2data([x],[y])
+        else:
+            size = len(x)
+            x,y = utils.real_time2data(x,y)
+        am.ctc_model.fit(x=x,y=y,batch_size=size,epochs=fit_epoch)
     else:#利用训练数据
         batch = train_data.get_am_batch()#获取的是生成器
         dev_batch = dev_data.get_am_batch()
@@ -66,11 +71,14 @@ def train_am(x=None,y=None):
 
     am.ctc_model.save_weights(os.path.join(utils.cur_path,'logs_am','model.h5'))
     #写入序列化的 PB 文件
-    with keras.backend.get_session() as sess:
-        constant_graph = tf.compat.v1.graph_util.convert_variables_to_constants(sess,
+    #with keras.backend.get_session() as sess:
+    sess = keras.backend.get_session()
+    constant_graph = tf.compat.v1.graph_util.convert_variables_to_constants(sess,
                             sess.graph_def,output_node_names=['the_inputs','dense_2/truediv'])
-        with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_am','amModel.pb'), mode='wb') as f:
-            f.write(constant_graph.SerializeToString())
+    with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_am','amModel.pb'), mode='wb') as f:
+        f.write(constant_graph.SerializeToString())
+    if x is None:
+        sess.close()
 
 
 # 2.语言模型训练-------------------------------------------
