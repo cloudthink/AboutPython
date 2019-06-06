@@ -82,7 +82,6 @@ class get_data():
             self.pny_vocab = self.mk_pny_vocab(tmp_pny)#拼音字典
             self.SaveCatch('pny_vocab',self.pny_vocab,datatype,sub_path)
         #print('拼音字典大小：{}'.format(len(self.pny_vocab)))#1297
-
         print('生成/加载 汉字字典...')
         self.han_vocab = LoadCatch('han_vocab',datatype,sub_path,self.thchs30,self.aishell,self.prime,self.stcmd)
         if self.han_vocab is None:
@@ -224,7 +223,7 @@ class SpeechRecognition():
         return self.predict(x,pinyin,hanzi,True)
 
 
-    def predict(self,x,pinyin=None,hanzi=None,come_from_file=False):
+    def predict(self,x,pinyin=None,hanzi=None,come_from_file=False,only_pinyin=False):
         if come_from_file == False:#来自文件的就不用再处理了
             x,_,_ = get_wav_Feature(wavsignal=x)#需要将原始音频编码处理一下
             
@@ -239,6 +238,8 @@ class SpeechRecognition():
             print('识别拼音：', text)
             if pinyin is not None:
                 print('原文拼音：', ' '.join(pinyin))
+        if only_pinyin:
+            return text
         with self.sess.as_default():
             text = text.strip('\n').split(' ')
             x = np.array([self.train_data.pny_vocab.index(pny) for pny in text])
