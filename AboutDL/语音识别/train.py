@@ -17,7 +17,7 @@ data_args.data_type = 'train'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 128#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -27,7 +27,7 @@ data_args.data_type = 'dev'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 128
+data_args.batch_size = 2
 dev_data = utils.get_data(data_args)
 
 
@@ -38,7 +38,7 @@ epochs = 100#两个模型都加入了提前终止判断，可以大一些，反�
 def train_am(x=None,y=None):
     from model_speech.cnn_ctc import Am, am_hparams
     am_args = am_hparams()
-    am_args.vocab_size = len(train_data.pny_vocab)
+    am_args.vocab_size = len(utils.pny_vocab)
     am_args.gpu_nums = 1
     am_args.lr = 0.0008
     am_args.is_training = True
@@ -81,8 +81,8 @@ def train_lm():
     lm_args = lm_hparams()
     lm_args.num_heads = 8
     lm_args.num_blocks = 6
-    lm_args.input_vocab_size = len(train_data.pny_vocab)
-    lm_args.label_vocab_size = len(train_data.han_vocab)
+    lm_args.input_vocab_size = len(utils.pny_vocab)
+    lm_args.label_vocab_size = len(utils.han_vocab)
     lm_args.max_length = 100
     lm_args.hidden_units = 512
     lm_args.dropout_rate = 0.2

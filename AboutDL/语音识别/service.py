@@ -72,7 +72,7 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		
 	def recognize(self, wavs,pre_type):
 		if pre_type == 'F':#传入的文件
-			_,han = yysb.predict_file(wavs)
+			_,han = yysb.predict(wavs,come_from_file=True)
 		elif pre_type == 'W':#传入的音频编码
 			_,han = yysb.predict(wavs)
 		return han
