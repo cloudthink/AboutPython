@@ -11,6 +11,7 @@ import pyaudio
 import wave
 
 import utils
+import train
 
 
 class FileRecord():
@@ -19,6 +20,7 @@ class FileRecord():
         self.allowRecording = False
         self.CHUNK = CHUNK
         self.RATE = RATE
+        self.ani = SubplotAnimation()
         self.intUI()
         self.root.protocol('WM_DELETE_WINDOW',self.close)
         self.root.mainloop()
@@ -29,15 +31,43 @@ class FileRecord():
         self.root.title('wav音频录制')
         x = (self.root.winfo_screenwidth()-200)//2
         y = (self.root.winfo_screenheight()-140)//2
-        self.root.geometry('330x140+{}+{}'.format(x,y))
+        self.root.geometry('330x200+{}+{}'.format(x,y))
         self.root.resizable(False,False)
         self.btStart = tkinter.Button(self.root,text='Start',command=self.start)
         self.btStart.place(x=50,y=20,width=100,height=40)
         self.btStop = tkinter.Button(self.root,text='Stop',command=self.stop)
         self.btStop.place(x=50,y=80,width=100,height=40)
         self.btShowWav = tkinter.Button(self.root,text='Real-Time Wav',command=self.ShowWav)
-        self.btShowWav.place(x=180,y=50,width=100,height=40)
+        self.btShowWav.place(x=180,y=20,width=100,height=40)
+        self.btTrain = tkinter.Button(self.root,text='实时训练',command=self.real_time_train)
+        self.btTrain.place(x=180,y=80,width=100,height=40)
+        self.label = tkinter.Text()
+        self.label.place(x=50,y=140,width=230,height=40)
+    
 
+    def real_time_train(self):
+        p = pyaudio.PyAudio()
+        stream = p.open(format=pyaudio.paInt16, channels=1, rate=self.RATE,
+                            input=True, frames_per_buffer=self.CHUNK)
+        data = []
+        while True:
+            y = np.fromstring(stream.read(self.CHUNK), dtype=np.int16)
+            data.append(y)
+            if self.ani._valid(np.array(data[-120::1]).flatten()):
+                if len(data)>3:
+                    lable = self.label.get('0.0', 'end').replace('\n','').split(',')
+                    wav = np.array(data).flatten()
+                    pin = self.ani.yysb.predict(wav,only_pinyin=True)
+                    print('【训练之前】预测拼音：{}'.format(pin))
+                    train.train_am(wav,lable)
+                    pin = self.ani.yysb.predict(wav,only_pinyin=True)
+                    print('【训练之后】预测拼音：{}'.format(pin))
+                data=data[-2:]
+                break
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+            
 
     def start(self):
         self.filename = tkinter.filedialog.asksaveasfilename(filetypes=[('Sound File','*.wav')])
@@ -56,7 +86,6 @@ class FileRecord():
 
 
     def ShowWav(self):
-        self.ani = SubplotAnimation()
         plt.show()
 
     
@@ -88,7 +117,6 @@ class FileRecord():
 
 class SubplotAnimation(animation.TimedAnimation):
     def __init__(self, path = None,serviceAddress='http://127.0.0.1:20000/'):
-        self.yysb = utils.SpeechRecognition(test_flag=True)
         self.httpService = serviceAddress
         #音频波形动态显示，实时显示波形，实时进行离散傅里叶变换分析频域
         if path is not None and os.path.isfile(path):
@@ -103,7 +131,7 @@ class SubplotAnimation(animation.TimedAnimation):
             self.stream = p.open(format=pyaudio.paInt16, channels=1, rate=self.rate,
                             input=True, frames_per_buffer=self.chunk)
             self.read = self.stream.read
-
+        self.yysb = utils.SpeechRecognition(test_flag=False)
         '''
         self.data说明：
         按时调用时：
@@ -170,12 +198,12 @@ class SubplotAnimation(animation.TimedAnimation):
                 wav = np.array(self.data).flatten()
                 if True:#本地方式
                     pin,han = self.yysb.predict(wav)
-                    #print('识别拼音：{}'.format(pin))
+                    print('识别拼音：{}'.format(pin))
                 else:#发送到服务器的方式
                     han = requests.post(self.httpService, {'token':'bringspring', 'wavs':wav,'pre_type':'W'})
                     han.encoding='utf-8'
                 self.resHan.append(han)#记录用
-                #print('识别汉字：{}'.format(han))#todo:或者给需要的地方
+                print('识别汉字：{}'.format(han))#todo:或者给需要的地方
 
             self.data=self.data[-2:]
             self.resHan.clear()
