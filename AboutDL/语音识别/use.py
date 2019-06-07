@@ -12,8 +12,6 @@ if __name__ == "__main__":
     data_args.data_type = 'test'
     test = utils.get_data(data_args)
 
-    yysb.testPinyin(' '.join(test.pny_lst[100]),test.han_lst[100])#拼音的已经可以了
-    yysb.predict(os.path.join(test.data_path,test.wav_lst[66]),test.pny_lst[66],test.han_lst[66],come_from_file=True)
-
     for i in range(10):
-        yysb.predict(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],test.han_lst[i],come_from_file=True)
+        yysb.testPinyin(' '.join(test.pny_lst[i]),test.han_lst[i])#拼音的已经可以了
+        #yysb.predict(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],test.han_lst[i],come_from_file=True)
