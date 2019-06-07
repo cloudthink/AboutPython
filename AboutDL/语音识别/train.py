@@ -17,7 +17,7 @@ data_args.data_type = 'train'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 256#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -27,7 +27,7 @@ data_args.data_type = 'dev'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 2
+data_args.batch_size = 256
 dev_data = utils.get_data(data_args)
 
 
@@ -142,7 +142,7 @@ def train_lm():
 
 
 if __name__ == "__main__":
-    if input('训练声学模型？ yes/no') == 'yes':
+    if input('训练声学模型？ yes/no:') == 'yes':
         train_am()
-    if input('训练语言学模型？ yes/no') == 'yes':
+    if input('训练语言学模型？ yes/no:') == 'yes':
         train_lm()
