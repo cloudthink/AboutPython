@@ -13,6 +13,24 @@ import wave
 import utils
 import train
 
+HAN2PIN = None
+_txtPath = os.path.join(utils.cur_path,'data','han2pin.txt')
+if os.path.exists(_txtPath):
+    with open(_txtPath, 'r', encoding='utf8') as f:
+        data = f.readlines()
+        HAN2PIN = {l[0]:l[1] for l in [line.replace('\n','').split(':') for line in data]}
+else:
+    HAN2PIN={}
+    with open(_txtPath, 'w', encoding='utf8') as f:
+        tmp_pny,tmp_han = utils.make_all_file()
+        for i,line in enumerate(tmp_han):
+            #line = ''.join(line.split(' '))
+            for j,han in enumerate(line):
+                if HAN2PIN.get(han) is None:
+                    HAN2PIN[han] = tmp_pny[i][j]
+        for k,v in HAN2PIN.items():
+            f.write('{}:{}\n'.format(k,v))
+
 
 class FileRecord():
     def __init__(self,CHUNK=400,RATE=16000):
@@ -59,7 +77,11 @@ class FileRecord():
             data.append(y)
             if self.ani._valid(np.array(data[-80::1]).flatten()):
                 if len(data)>10:
-                    label = self.label.get('0.0', 'end').replace('\n','').split(',')
+                    txt = self.label.get('0.0', 'end').replace('\n','')
+                    if txt.isalpha():
+                        label = [HAN2PIN[h] for h in txt]
+                    else:
+                        label = txt.split(',')
                     wav = np.array(data).flatten()
                     pin = self.ani.yysb.predict(wav,only_pinyin=True)
                     print('【训练之前】预测拼音：{}'.format(pin))
