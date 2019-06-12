@@ -80,6 +80,7 @@ class FileRecord():
                     txt = self.label.get('0.0', 'end').replace('\n','')
                     if txt.isalpha():
                         label = [HAN2PIN[h] for h in txt]
+                        print('对应拼音为：{}'.format(label))
                     else:
                         label = txt.split(',')
                     wav = np.array(data).flatten()
