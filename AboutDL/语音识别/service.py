@@ -7,6 +7,32 @@ import keras
 import utils
 import numpy as np
 
+'''
+配置使用tensorflow serving的服务说明：
+
+安装docker
+安装docker镜像：
+docker pull tensorflow/serving:latest-gpu
+#docker pull tensorflow/serving #CPU版
+
+sudo usermod -aG docker $USER 把当前用户添加到docker组
+newgrp - docker 刷新docker组
+sudo service docker restart 重启服务
+
+#根据情况修改model.config中的配置
+
+#调整source后的路径为对应的路径（model.config的上层目录）
+
+sudo docker run --runtime=nvidia -p 8501:8501 \
+ --mount type=bind,\
+source=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/,\
+target=/models \
+ -t tensorflow/serving:latest-gpu \
+ --model_config_file=/models/model.config
+'''
+#查看模型输入输出
+#saved_model_cli show --dir /media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_lm/190612/ --all
+
 yysb = utils.SpeechRecognition(test_flag=False)
 class TestHTTPHandle(http.server.BaseHTTPRequestHandler):  
 	def setup(self):
