@@ -190,7 +190,7 @@ class SubplotAnimation(animation.TimedAnimation):
         #ax1.set_ylabel('x')
         self.line1, = ax1.plot([], [], lw=2)
         ax1.set_xlim(0, self.chunk)
-        ax1.set_ylim(-10000, 10000)
+        ax1.set_ylim(-6000, 6000)
 
         self.line2, = ax2.plot([], [], lw=2)
         ax2.set_xlim(0, self.chunk)
