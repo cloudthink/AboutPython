@@ -20,7 +20,7 @@ data_args.data_type = 'train'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 512#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -30,7 +30,7 @@ data_args.data_type = 'dev'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 2
+data_args.batch_size = 512
 dev_data = utils.get_data(data_args)
 
 
@@ -157,7 +157,7 @@ def train_lm():
         #tf serving 用保存文件，目前保存了三种模型，按需选择一种即可
         model_signature = tf.saved_model.signature_def_utils.build_signature_def(
             inputs={"pinyin": tf.saved_model.utils.build_tensor_info(lm.x)},
-            outputs={"hanzi": tf.saved_model.utils.build_tensor_info(lm.y)},
+            outputs={"hanzi": tf.saved_model.utils.build_tensor_info(lm.preds)},
             method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME)
         builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(utils.cur_path,'logs_lm',modelVersion))
         builder.add_meta_graph_and_variables(sess,[tf.saved_model.tag_constants.SERVING],
