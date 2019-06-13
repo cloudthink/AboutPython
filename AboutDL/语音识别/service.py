@@ -31,8 +31,12 @@ target=/models \
  -t tensorflow/serving:latest-gpu \
  --model_config_file=/models/model.config
 '''
+#查看服务状态
+#curl http://localhost:8501/v1/models/lm
 #查看模型输入输出
 #saved_model_cli show --dir /media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_lm/190612/ --all
+#关闭服务（把docker容器都杀了，请酌情修改）
+#sudo docker ps | xargs sudo docker kill
 
 #支持的API类型，如果token不在list中则认为无效
 API_Surport_List = ['SR']
