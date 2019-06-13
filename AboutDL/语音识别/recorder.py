@@ -89,8 +89,8 @@ class FileRecord():
                     train.train_am(wav,label)
                     self.wav_list.append(wav)
                     self.label_list.append(label)
-                    pin = self.ani.yysb.predict(wav,only_pinyin=True)
-                    print('【训练之后】预测拼音：{}'.format(pin))#目前有个问题训练前后结果一样，todo
+                    #pin = self.ani.yysb.predict(wav,only_pinyin=True)
+                    #print('【训练之后】预测拼音：{}'.format(pin))#目前有个问题训练前后结果一样，todo
                     break
                 data=data[-9:]
         stream.stop_stream()
@@ -119,7 +119,7 @@ class FileRecord():
 
 
     def ShowWav(self):
-        self.ani = SubplotAnimation()
+        self.ani = SubplotAnimation(serviceAddress='http://172.16.100.213:20000/')
         plt.show()
 
     
@@ -231,12 +231,16 @@ class SubplotAnimation(animation.TimedAnimation):
             #修改语音识别调用方式：这种是在开始记录有效声音后直到准备清理数据时最后用完整数据调用一次
             if len(self.data)>10:
                 wav = np.array(self.data).flatten()
-                if True:#本地方式
+                if False:#本地方式
                     pin,han = self.yysb.predict(wav)
                     print('识别拼音：{}'.format(pin))
                 else:#发送到服务器的方式
-                    han = requests.post(self.httpService, {'token':'bringspring', 'wavs':wav,'pre_type':'W'})
-                    han.encoding='utf-8'
+                    try:
+                        han = requests.post(self.httpService, {'token':'SR', 'data':wav,'pre_type':'H'})
+                        han.encoding='utf-8'
+                        han = han.text
+                    except BaseException as e:
+                        han = str(e)
                 self.resHan.append(han)#记录用
                 print('识别汉字：{}'.format(han))#todo:或者给需要的地方
 
@@ -250,6 +254,7 @@ class SubplotAnimation(animation.TimedAnimation):
             else:#发送到服务器的方式
                 han = requests.post(self.httpService, {'token':'bringspring', 'wavs':self.data,'pre_type':'W'})
                 han.encoding='utf-8'
+                han = han.text
             self.resHan = han#每次都刷新识别结果，即最后一次的结果会是完整一句话
             if special_flag:
                 print('识别汉字：{}'.format(han))#todo:或者给需要的地方
