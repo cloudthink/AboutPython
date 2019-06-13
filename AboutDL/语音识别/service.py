@@ -43,7 +43,7 @@ API_Surport_List = ['SR']
 #是否使用tensorflow serving服务，如果使用这个对外暴露的仅作为中转站
 ues_tf_serving = True
 #tensorflow serving的url地址,基本上只修改IP即可
-tf_serving_url = '172.16.100.213:8501/v1/models/{}:predict'
+tf_serving_url = 'http://localhost:8501/v1/models/{}:predict'
 if not ues_tf_serving:
 	yysb = utils.SpeechRecognition(test_flag=False)
 
@@ -117,10 +117,24 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 	
 	def SR_recognize(self, wavs,pre_type):
 		hanzi =''
+		am_url = tf_serving_url.format('am')
+		lm_url = tf_serving_url.format('lm')
 		if ues_tf_serving:
-			pinyin = requests.post(tf_serving_url.format('am'),'{"instance":%s}' % list(wavs))
+			x,_,_ = utils.get_wav_Feature(wavsignal=wavs)
+			try:
+				receipt = requests.post(am_url,data='{"instances":%s}' % x.tolist()).json()['predictions'][0]
+				receipt = np.array([receipt],dtype=np.float32)
+			except BaseException as e:
+				return _,str(e)
+			_, pinyin = utils.decode_ctc(receipt, utils.pny_vocab)
+			pinyin = [[utils.pny_vocab.index(p) for p in ' '.join(pinyin).strip('\n').split(' ')]]
 			if pre_type == 'H':
-				hanzi = requests.post(tf_serving_url.format('lm'),'{"instance":%s}' % list(pinyin))
+				#curl -d '{"instances": [[420,58]]}' -X POST http://localhost:8501/v1/models/lm:predict
+				try:
+					hanzi = requests.post(lm_url,data='{"instances": %s}' % pinyin).json()['predictions'][0]
+				except BaseException as e:
+					return _,str(e)
+				hanzi = ''.join(utils.han_vocab[idx] for idx in hanzi)
 		else:
 			if pre_type == 'H':
 				pinyin,hanzi = yysb.predict(wavs)
