@@ -1,12 +1,13 @@
 """
-语音识别API的HTTP服务器程序
+API的HTTP服务器程序
 """
 import http.server
 import urllib
 import keras
 import utils
 import numpy as np
-
+import socket
+import requests
 '''
 配置使用tensorflow serving的服务说明：
 
@@ -33,29 +34,40 @@ target=/models \
 #查看模型输入输出
 #saved_model_cli show --dir /media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_lm/190612/ --all
 
-yysb = utils.SpeechRecognition(test_flag=False)
+#支持的API类型，如果token不在list中则认为无效
+API_Surport_List = ['SR']
+#是否使用tensorflow serving服务，如果使用这个对外暴露的仅作为中转站
+ues_tf_serving = True
+#tensorflow serving的url地址,基本上只修改IP即可
+tf_serving_url = '172.16.100.213:8501/v1/models/{}:predict'
+if not ues_tf_serving:
+	yysb = utils.SpeechRecognition(test_flag=False)
+
+
 class TestHTTPHandle(http.server.BaseHTTPRequestHandler):  
 	def setup(self):
 		self.request.settimeout(10)
 		http.server.BaseHTTPRequestHandler.setup(self)
 	
+
 	def _set_response(self):
 		self.send_response(200)
 		self.send_header('Content-type', 'text/html')
 		self.end_headers()
 		
+
 	def do_GET(self):  
-		buf = 'SpeechRecognition API'  
+		buf = 'AI API'  
 		self.protocal_version = 'HTTP/1.1'   
 		
 		self._set_response()
 		buf = bytes(buf,encoding="utf-8")
 		self.wfile.write(buf) 
 		
+
 	def do_POST(self):  
 		'''
-		处理通过POST方式传递过来并接收的语音数据
-		通过语音模型和语言模型计算得到语音识别结果并返回
+		处理通过POST方式传递过来并接收的数据,通过 模型计算/调用tfserving 得到结果并返回
 		'''
 		#获取post提交的数据  
 		datas = self.rfile.read(int(self.headers['content-length']))  
@@ -63,12 +75,12 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		datas = datas.decode('utf-8')
 		datas_split = datas.split('&')
 		token = ''
-		pre_type = 'W'
-		wavs = []
+		pre_type = 'H'
+		receipt_data = []
 		for line in datas_split:
 			[key, value]=line.split('=')
-			if('wavs' == key and '' != value):
-				wavs.append(value)
+			if('data' == key and '' != value):
+				receipt_data.append(value)
 			elif('pre_type' == key):
 				pre_type = value
 			elif('token' == key ):
@@ -76,37 +88,48 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 			else:
 				print(key, value)
 			
-		if(token != 'bringspring'):
+		if(token not in API_Surport_List):
 			buf = '403'
 			buf = bytes(buf,encoding="utf-8")
 			self.wfile.write(buf)  
 			return
 		
 		try:
-			if len(wavs)>0:
-				wavs = np.array([int(w) for w in wavs])
-				r = self.recognize(wavs, pre_type)
+			if len(receipt_data)>0:
+				if token == 'SR':
+					wavs = np.array([int(w) for w in receipt_data])
+					_,r = self.SR_recognize(wavs, pre_type)
+				else:
+					pass
 			else:
 				r = ''
 		except BaseException as ex:
 			r=str(ex)
 
 		self._set_response()
-		
 		r = bytes(r,encoding="utf-8")
 		self.wfile.write(r)
-		
-	def recognize(self, wavs,pre_type):
-		if pre_type == 'F':#传入的文件
-			_,han = yysb.predict(wavs,come_from_file=True)
-		elif pre_type == 'W':#传入的音频编码
-			_,han = yysb.predict(wavs)
-		return han
 
-import socket
+	
+	def SR_recognize(self, wavs,pre_type):
+		hanzi =''
+		if ues_tf_serving:
+			pinyin = requests.post(tf_serving_url.format('am'),'{"instance":%s}' % list(wavs))
+			if pre_type == 'H':
+				hanzi = requests.post(tf_serving_url.format('lm'),'{"instance":%s}' % list(pinyin))
+		else:
+			if pre_type == 'H':
+				pinyin,hanzi = yysb.predict(wavs)
+			else:
+				pinyin = yysb.predict(wavs,only_pinyin = True)
+		return pinyin,hanzi
+
+
 
 class HTTPServerV6(http.server.HTTPServer):
 	address_family = socket.AF_INET6
+
+
 
 def start_server(ip, port):  
 	if(':' in ip):
@@ -120,7 +143,9 @@ def start_server(ip, port):
 		pass
 	http_server.server_close()
 	print('HTTP server closed')
-	
+
+
+
 if __name__ == '__main__':
 	start_server('', 20000) # For IPv4 Network Only
-#start_server('::', 20000) # For IPv6 Network
+	#start_server('::', 20000) # For IPv6 Network
