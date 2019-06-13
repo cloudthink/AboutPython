@@ -8,3 +8,6 @@ AboutDL/语音识别/logs_lm/model_*.index
 AboutDL/语音识别/logs_lm/model_*.meta
 AboutDL/语音识别TF2.0*
 AboutDL/语音识别/logs_lm/checkpoint
+AboutDL/语音识别/logs_*m/*/saved_model.pb
+AboutDL/语音识别/logs_*m/*/variables/variables.data-00000-of-00001
+AboutDL/语音识别/logs_*m/*/variables/variables.index

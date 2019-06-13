@@ -9,6 +9,9 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True   #不全部占满显存, 按需分配
 keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
 
+from datetime import datetime
+modelVersion = str(datetime.now())[2:10].replace("-", "")
+
 
 # 0.准备训练所需数据------------------------------
 data_args = utils.data_hparams()
@@ -17,7 +20,7 @@ data_args.data_type = 'train'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 256#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 2#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -27,7 +30,7 @@ data_args.data_type = 'dev'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 256
+data_args.batch_size = 2
 dev_data = utils.get_data(data_args)
 
 
@@ -40,7 +43,7 @@ def train_am(x=None,y=None,fit_epoch=10):
     am_args = am_hparams()
     am_args.vocab_size = len(utils.pny_vocab)
     am_args.gpu_nums = 1
-    am_args.lr = 0.0008
+    am_args.lr = 0.0003
     am_args.is_training = True
     am = Am(am_args)
 
@@ -50,7 +53,7 @@ def train_am(x=None,y=None,fit_epoch=10):
 
     checkpoint = ModelCheckpoint(os.path.join(utils.cur_path,'checkpoint', "model_{epoch:02d}-{val_loss:.2f}.h5"),
         monitor='val_loss',save_best_only=True)
-    eStop = EarlyStopping(patience=1)#损失函数不再减小后patience轮停止训练
+    eStop = EarlyStopping()#损失函数不再减小后patience轮停止训练
     #tensorboard --logdir=/media/yangjinming/DATA/GitHub/AboutPython/AboutDL/语音识别/logs_am/tbLog/ --host=127.0.0.1
     #tensbrd = TensorBoard(log_dir=os.path.join(utils.cur_path,'logs_am','tbLog'))
 
@@ -77,8 +80,19 @@ def train_am(x=None,y=None,fit_epoch=10):
                             sess.graph_def,output_node_names=['the_inputs','dense_2/truediv'])
     with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_am','amModel.pb'), mode='wb') as f:
         f.write(constant_graph.SerializeToString())
+
+    #保存TF serving用文件
+    builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(utils.cur_path,'logs_am',modelVersion))
+    model_signature = tf.saved_model.signature_def_utils.predict_signature_def(
+        inputs={'input': am.inputs}, outputs={'output': am.outputs})
+    builder.add_meta_graph_and_variables(sess,[tf.saved_model.tag_constants.SERVING],
+            {tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: model_signature})
+    builder.save()
+
     if x is None:
         sess.close()
+
+    
 
 
 # 2.语言模型训练-------------------------------------------
@@ -128,7 +142,7 @@ def train_lm():
             print('步数', k+1, ': 平均损失值 = ', avg_loss)
 
             loss_list.append(avg_loss)
-            if len(loss_list)>4 and avg_loss>np.mean(loss_list[-5:])-0.0015:#平均每个epoch下降不到0.0005则终止
+            if len(loss_list)>1 and avg_loss>np.mean(loss_list[-5:])-0.0015:#平均每个epoch下降不到0.0005则终止
                 #if input('模型性能已无法提升，是否提前结束训练？ yes/no:')=='yes':
                     epochs = k+1#为后面保存模型时记录名字用
                     break
@@ -139,6 +153,16 @@ def train_lm():
         constant_graph = tf.compat.v1.graph_util.convert_variables_to_constants(sess, sess.graph_def,output_node_names=['x','y','preds'])
         with tf.gfile.GFile(os.path.join(utils.cur_path,'logs_lm','lmModel.pb'), mode='wb') as f:
             f.write(constant_graph.SerializeToString())
+
+        #tf serving 用保存文件，目前保存了三种模型，按需选择一种即可
+        model_signature = tf.saved_model.signature_def_utils.build_signature_def(
+            inputs={"pinyin": tf.saved_model.utils.build_tensor_info(lm.x)},
+            outputs={"hanzi": tf.saved_model.utils.build_tensor_info(lm.y)},
+            method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME)
+        builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(utils.cur_path,'logs_lm',modelVersion))
+        builder.add_meta_graph_and_variables(sess,[tf.saved_model.tag_constants.SERVING],
+            {tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: model_signature})
+        builder.save()
 
 
 if __name__ == "__main__":
