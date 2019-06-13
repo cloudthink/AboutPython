@@ -21,7 +21,7 @@ def testModel():
     for i in range(10):
         print('\n 第 ', i, ' 个例子')
         label = test.han_lst[i]
-        pinyin,hanzi = yysb.predict(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],label)
+        pinyin,hanzi = yysb.predict(os.path.join(test.data_path,test.wav_lst[i]),test.pny_lst[i],label,come_from_file=True)
         word_error_num += min(len(label), utils.GetEditDistance(label, hanzi))
         word_num += len(label)
     print('词错误率：', word_error_num / word_num)
