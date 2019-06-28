@@ -158,10 +158,7 @@ def label_padding(label_data_lst):
 
 # 获取音频文件的特征向量------------------------------------
 def get_wav_Feature(filePath=None,wavsignal=None):
-    if wavsignal is None:
-        fbank = compute_fbank(file = filePath)
-    else:
-        fbank = compute_fbank(wavsignal = wavsignal)
+    fbank = compute_fbank(file = filePath,wavsignal = wavsignal)
     pad_fbank = np.zeros((fbank.shape[0] // 8 * 8 + 8, fbank.shape[1]))
     pad_fbank[:fbank.shape[0], :] = fbank
     pad_wav_data, input_length = wav_padding([pad_fbank])
@@ -218,8 +215,7 @@ def decode_ctc(num_result, num2word):
     in_len = np.zeros((1), dtype = np.int32)
     in_len[0] = result.shape[1]
     r = K.ctc_decode(result, in_len, greedy = True, beam_width=10, top_paths=1)
-    r1 = K.get_value(r[0][0])
-    r1 = r1[0]
+    r1 = K.get_value(r[0][0])[0]
     text = []
     for i in r1:
         text.append(num2word[i])
@@ -356,8 +352,8 @@ class SpeechRecognition():
                 graph_def = tf.GraphDef()
                 graph_def.ParseFromString(f.read())
                 self.sess.graph.as_default()
-                tf.import_graph_def(graph_def, name='') # 导入计算图 # 需要有一个初始化的过程
-                self.sess.run(tf.global_variables_initializer())
+                tf.import_graph_def(graph_def, name='') # 导入计算图
+                self.sess.run(tf.global_variables_initializer())# 需要有一个初始化的过程
             self.x = self.sess.graph.get_tensor_by_name('x:0') #此处的x一定要和之前保存时输入的名称一致！
             self.preds = self.sess.graph.get_tensor_by_name('preds:0')
         else:#ckpt
@@ -377,7 +373,7 @@ class SpeechRecognition():
 
     def predict(self,x,pinyin=None,hanzi=None,come_from_file=False,only_pinyin=False):
         '''
-        如果come_from_file未真则入参x是文件的绝对路径，否则默认传入的是解码后的音频
+        如果come_from_file为真则入参x是文件的绝对路径，否则默认传入的是解码后的音频
         '''
         if come_from_file:
             x,_,_ = get_wav_Feature(filePath=x)
