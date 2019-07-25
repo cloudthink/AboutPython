@@ -20,7 +20,7 @@ data_args.data_type = 'train'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 512#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
+data_args.batch_size = 18#可以将不一次性训练am和lm，同样显存情况下lm的batch_size可以比am的大许多
 train_data = utils.get_data(data_args)
 
 # 0.准备验证所需数据------------------------------
@@ -30,7 +30,7 @@ data_args.data_type = 'dev'
 #data_args.aishell = True
 #data_args.prime = True
 #data_args.stcmd = True
-data_args.batch_size = 512
+data_args.batch_size = 1
 dev_data = utils.get_data(data_args)
 
 
@@ -43,7 +43,7 @@ def train_am(x=None,y=None,fit_epoch=10):
     am_args = am_hparams()
     am_args.vocab_size = len(utils.pny_vocab)
     am_args.gpu_nums = 1
-    am_args.lr = 0.0003
+    am_args.lr = 0.0008
     am_args.is_training = True
     am = Am(am_args)
 
