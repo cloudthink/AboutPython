@@ -14,7 +14,7 @@ lab_dict={'isiXhosa':0,'Afrikaans':1,'Sesotho':2,'Setswana':3}#(手动维护)标
 
 rev_lab_dict = {value:key for key,value in lab_dict.items()}#(自动生成)反义字典，用于查看真实标签
 rev_ten = np.array([x for x in range(len(lab_dict))])#(自动生成)转义向量：用于将独热化的标签转换为字典数字
-catchDirPath = '/home/yangjinming/DataSet/Catch'
+catchDirPath = '/media/yangjinming/DATA/Dataset/Catch'
 
 class DataSet(object):
     def __init__(self, x=None,y=None):

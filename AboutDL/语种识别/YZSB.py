@@ -18,13 +18,13 @@ class FixNN(object):
         self.dropout=dropout
         inputs = Input(shape=(shape,))
         H1 = Dense(1024,activation='relu')(inputs)
-        H2 = Dense(512,activation='relu')(inputs)
+        H2 = Dense(512,activation='relu')(H1)
         H3 = Dense(256,activation='relu')(H2)
         H4 = Dense(len(input_data.lab_dict),activation='relu')(H3)
         H5 = Dense(256,activation='relu')(H4)
         H6 = Dense(512,activation='relu')(H5)
         H7 = Dense(1024,activation='relu')(H6)
-        outputs = Dense(shape,activation='sigmoid')(H6)
+        outputs = Dense(shape,activation='sigmoid')(H7)
         self.Classifer = Model(input = inputs,output=H4)
         opt = keras.optimizers.Adam(lr = learning_rate)
         self.Classifer.compile(loss=keras.losses.mean_squared_error,optimizer=opt,metrics=['accuracy'])
@@ -33,7 +33,7 @@ class FixNN(object):
         checkpointer = ModelCheckpoint(filepath=modelName, save_best_only=True)
         tensbrd = TensorBoard(log_dir='./tmp/tbLog')
         eStop = EarlyStopping(patience=10)#损失函数不再减小后十轮停止训练
-        callback = [checkpointer]
+        callback = [checkpointer,eStop,tensbrd]
         
         history = self.Classifer.fit(x,y,epochs=self.n_epochs,batch_size=self.batch_size,validation_split=0.2,callbacks=callback)
         self.TestAcc(xt,yt)
@@ -60,7 +60,7 @@ class FixNN(object):
             print("真实标签：{}\n".format(input_data.rev_lab_dict[np.dot(np.array(y[i]),input_data.rev_ten)]))
 
 if __name__ == "__main__":
-    data = input_data.read_data_sets("/home/yangjinming/DataSet/")
+    data = input_data.read_data_sets("/media/yangjinming/DATA/Dataset/")
     nn = FixNN()
     x = np.concatenate((data.train.wavs,data.validation.wavs),axis=0)
     y = np.concatenate((data.train.labels, data.validation.labels),axis=0)
