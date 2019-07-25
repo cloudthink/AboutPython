@@ -58,7 +58,7 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		self.send_response(200)
 		self.send_header('Content-type', 'text/html')
 		self.end_headers()
-		
+
 
 	def do_GET(self):  
 		buf = 'AI API'  
@@ -67,14 +67,23 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		self._set_response()
 		buf = bytes(buf,encoding="utf-8")
 		self.wfile.write(buf) 
-		
+	
+
+
+	def do_OPTIONS(self):           
+		self.send_response(200, "ok")
+		self.send_header('Access-Control-Allow-Origin', '*')
+		self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+		self.send_header("Access-Control-Allow-Headers", "Content-Type")
+		self.end_headers()
+
 
 	def do_POST(self):  
 		'''
 		处理通过POST方式传递过来并接收的数据,通过 模型计算/调用tfserving 得到结果并返回
-		'''
-		#获取post提交的数据  
-		datas = self.rfile.read(int(self.headers['content-length']))  
+		'''             
+		#获取post提交的数据
+		datas = self.rfile.read(int(self.headers['content-length']))
 		#datas = urllib.unquote(datas).decode("utf-8", 'ignore') 
 		datas = datas.decode('utf-8')
 		datas_split = datas.split('&')
