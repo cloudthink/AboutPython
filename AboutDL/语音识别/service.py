@@ -1,6 +1,3 @@
-"""
-API的HTTP服务器程序
-"""
 import http.server
 import urllib
 import keras
@@ -8,6 +5,7 @@ import utils
 import numpy as np
 import socket
 import requests
+import json
 '''
 配置使用tensorflow serving的服务说明：
 
@@ -57,6 +55,8 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 	def _set_response(self):
 		self.send_response(200)
 		self.send_header('Content-type', 'text/html')
+		self.send_header('Access-Control-Allow-Origin', '*')
+		self.send_header("Access-Control-Allow-Headers", "Content-Type")
 		self.end_headers()
 
 
@@ -75,7 +75,6 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		self.send_header('Access-Control-Allow-Origin', '*')
 		self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
 		self.send_header("Access-Control-Allow-Headers", "Content-Type")
-		self.end_headers()
 
 
 	def do_POST(self):  
@@ -86,20 +85,27 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 		datas = self.rfile.read(int(self.headers['content-length']))
 		#datas = urllib.unquote(datas).decode("utf-8", 'ignore') 
 		datas = datas.decode('utf-8')
-		datas_split = datas.split('&')
 		token = ''
 		pre_type = 'H'
 		receipt_data = []
-		for line in datas_split:
-			[key, value]=line.split('=')
-			if('data' == key and '' != value):
-				receipt_data.append(value)
-			elif('pre_type' == key):
-				pre_type = value
-			elif('token' == key ):
-				token = value
-			else:
-				print(key, value)
+
+		if datas.find('&') < 0:#处理x-www-form-unlencoded格式
+			datas_json = json.loads(datas)
+			token = datas_json['token']
+			pre_type = datas_json['pre_type']
+			receipt_data = list(datas_json['data'])
+		else:
+			datas_split = datas.split('&')
+			for line in datas_split:
+				[key, value]=line.split('=')
+				if('data' == key and '' != value):
+					receipt_data.append(value)
+				elif('pre_type' == key):
+					pre_type = value
+				elif('token' == key ):
+					token = value
+				else:
+					print(key, value)
 			
 		if(token not in API_Surport_List):
 			buf = '403'
@@ -107,17 +113,14 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 			self.wfile.write(buf)  
 			return
 		
-		try:
-			if len(receipt_data)>0:
-				if token == 'SR':
-					wavs = np.array([int(w) for w in receipt_data])
-					_,r = self.SR_recognize(wavs, pre_type)
-				else:
-					pass
+		if len(receipt_data)>0:
+			if token == 'SR':
+				wavs = np.array([int(w) for w in receipt_data])
+				_,r = self.SR_recognize(wavs, pre_type)
 			else:
-				r = ''
-		except BaseException as ex:
-			r=str(ex)
+				pass
+		else:
+			r = ''
 
 		self._set_response()
 		r = bytes(r,encoding="utf-8")
@@ -134,7 +137,7 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 				receipt = requests.post(am_url,data='{"instances":%s}' % x.tolist()).json()['predictions'][0]
 				receipt = np.array([receipt],dtype=np.float32)
 			except BaseException as e:
-				return _,str(e)
+				return _,'声学模型调用异常'
 			_, pinyin = utils.decode_ctc(receipt, utils.pny_vocab)
 			pinyin = [[utils.pny_vocab.index(p) for p in ' '.join(pinyin).strip('\n').split(' ')]]
 			if pre_type == 'H':
@@ -142,7 +145,7 @@ class TestHTTPHandle(http.server.BaseHTTPRequestHandler):
 				try:
 					hanzi = requests.post(lm_url,data='{"instances": %s}' % pinyin).json()['predictions'][0]
 				except BaseException as e:
-					return _,str(e)
+					return _,'语言模型调用异常'
 				hanzi = ''.join(utils.han_vocab[idx] for idx in hanzi)
 		else:
 			if pre_type == 'H':
