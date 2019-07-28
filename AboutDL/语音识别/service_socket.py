@@ -8,6 +8,10 @@ import base64
 import hashlib
 import struct
 
+'''
+Python处理前端javascript发来的数据解码和编码参考以下内容，针对其中BUG有修改
+https://blog.csdn.net/ice110956/article/details/34118203
+'''
 #支持的API类型，如果token不在list中则认为无效
 API_Surport_List = ['SR']
 ues_tf_serving = False
@@ -17,39 +21,36 @@ if not ues_tf_serving:
 
 
 def SR_recognize(wavs,pre_type):
-		hanzi =''
-		am_url = tf_serving_url.format('am')
-		lm_url = tf_serving_url.format('lm')
-		if ues_tf_serving:
-			x,_,_ = utils.get_wav_Feature(wavsignal=wavs)
-			try:
-				receipt = requests.post(am_url,data='{"instances":%s}' % x.tolist()).json()['predictions'][0]
-				receipt = np.array([receipt],dtype=np.float32)
-			except:
-				return _,'声学模型调用异常'
-			_, pinyin = utils.decode_ctc(receipt, utils.pny_vocab)
-			pinyin = [[utils.pny_vocab.index(p) for p in ' '.join(pinyin).strip('\n').split(' ')]]
-			if pre_type == 'H':
-				#curl -d '{"instances": [[420,58]]}' -X POST http://localhost:8501/v1/models/lm:predict
-				try:
-					hanzi = requests.post(lm_url,data='{"instances": %s}' % pinyin).json()['predictions'][0]
-				except:
-					return _,'语言模型调用异常'
-				hanzi = ''.join(utils.han_vocab[idx] for idx in hanzi)
-		else:
-			if pre_type == 'H':
-				pinyin,hanzi = yysb.predict(wavs)
-			else:
-				pinyin = yysb.predict(wavs,only_pinyin = True)
-		return pinyin,hanzi
-
-
-def send_data(data):
-    if data:
-        data = str(data)
+    hanzi =''
+    am_url = tf_serving_url.format('am')
+    lm_url = tf_serving_url.format('lm')
+    if ues_tf_serving:
+        x,_,_ = utils.get_wav_Feature(wavsignal=wavs)
+        try:
+            receipt = requests.post(am_url,data='{"instances":%s}' % x.tolist()).json()['predictions'][0]
+            receipt = np.array([receipt],dtype=np.float32)
+        except:
+            return _,'声学模型调用异常'
+        _, pinyin = utils.decode_ctc(receipt, utils.pny_vocab)
+        pinyin = [[utils.pny_vocab.index(p) for p in ' '.join(pinyin).strip('\n').split(' ')]]
+        if pre_type == 'H':
+            #curl -d '{"instances": [[420,58]]}' -X POST http://localhost:8501/v1/models/lm:predict
+            try:
+                hanzi = requests.post(lm_url,data='{"instances": %s}' % pinyin).json()['predictions'][0]
+            except:
+                return _,'语言模型调用异常'
+            hanzi = ''.join(utils.han_vocab[idx] for idx in hanzi)
     else:
-        return False
-    token = "\x81"
+        if pre_type == 'H':
+            pinyin,hanzi = yysb.predict(wavs)
+        else:
+            pinyin = yysb.predict(wavs,only_pinyin = True)
+    return pinyin,hanzi
+
+
+def encode_data(data):
+    data = data.encode('utf-8')
+    token = b"\x81"
     length = len(data)
     if length < 126:
         token += struct.pack("B", length)
@@ -58,7 +59,7 @@ def send_data(data):
     else:
         token += struct.pack("!BQ", 127, length)
     #struct为Python中处理二进制数的模块，二进制流为C，或网络流的形式。
-    data = '%s%s' % (token, data)
+    data = token + data
     return data
 
 
@@ -67,7 +68,7 @@ def tcplink(sock, addr):
     js_flag = False
     while True:
         all_data = sock.recv(524288)
-        if not all_data: 
+        if not all_data:
             break
         try:
             datas = all_data.decode('utf-8')
@@ -109,13 +110,16 @@ def tcplink(sock, addr):
             r = ''
             
         if js_flag:
-            r = send_data(r)
+            r = encode_data(r)
         else:
             r = r.encode('utf-8')
         sock.send(r)
+    sock.close()
+    print('Connection from %s:%s closed.\n' % addr)
 
 
 if __name__ == "__main__":
+    IPs = socket.gethostbyname_ex(socket.gethostname())[-1]
     # family=AF_INET - IPv4地址
     # family=AF_INET6 - IPv6地址
     # type=SOCK_STREAM - TCP套接字
@@ -123,7 +127,7 @@ if __name__ == "__main__":
     # type=SOCK_RAW - 原始套接字    
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # 监听端口:
-    s.bind(('172.16.100.25', 9999))
+    s.bind((IPs[0], 9999))
     s.listen(255)# 参数255可以理解为连接队列的大小
     while True:
         # 接受一个新连接:
