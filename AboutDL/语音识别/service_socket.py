@@ -66,10 +66,13 @@ def encode_data(data):
 def tcplink(sock, addr):
     print('Accept new connection from %s:%s...' % addr)
     js_flag = False
+    js_saver = b''#防止数据过长时单次接收不全
     while True:
         all_data = sock.recv(524288)
         if not all_data:
             break
+        js_saver += all_data
+        all_data = js_saver#all_data从js_saver处获取目前为止的全部数据
         try:
             datas = all_data.decode('utf-8')
         except:#处理前端js发来的websocket数据，还要进行解码处理
@@ -88,10 +91,12 @@ def tcplink(sock, addr):
             for i,d in enumerate(all_data):
                 datas += chr(d ^ masks[i % 4])
         try:
-            if datas.find('token') < 0:
+            if datas.find('token') < 0 or datas.find('pre_type') < 0:
                 continue
             datas = json.loads(datas)
-        except:
+            js_saver = b''
+        except BaseException as e:
+            print(e)
             continue
         token = datas['token']
         pre_type = datas['pre_type']
@@ -127,7 +132,7 @@ if __name__ == "__main__":
     # type=SOCK_RAW - 原始套接字    
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # 监听端口:
-    s.bind((IPs[0], 9999))
+    s.bind(('172.16.100.29', 9999))
     s.listen(255)# 参数255可以理解为连接队列的大小
     while True:
         # 接受一个新连接:
