@@ -57,7 +57,10 @@ class GatedConv(MASRModel):
 
     def predict(self, path):
         self.eval()
-        wav = feature.load_audio(path)
+        if path.find('.wav'):
+            wav = feature.load_audio(wav_path=path,wav=None)
+        else:
+            wav = feature.load_audio(wav=path)
         spec = feature.spectrogram(wav)
         spec.unsqueeze_(0)
         x_lens = spec.size(-1)

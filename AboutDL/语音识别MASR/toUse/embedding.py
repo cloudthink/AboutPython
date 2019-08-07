@@ -7,7 +7,7 @@ from torch.nn.utils import remove_weight_norm
 
 torch.set_grad_enabled(False)
 
-model = GatedConv.load("pretrained/gated-conv.pth")
+model = GatedConv.load("语音识别MASR/pretrained/gated-conv.pth")
 model.eval()
 
 conv = model.cnn[10]

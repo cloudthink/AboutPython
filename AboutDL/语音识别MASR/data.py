@@ -6,58 +6,28 @@ import scipy
 import json
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+import os
+import feature
 
-sample_rate = 16000
-window_size = 0.02
-window_stride = 0.01
-n_fft = int(sample_rate * window_size)
-win_length = n_fft
-hop_length = int(sample_rate * window_stride)
-window = "hamming"
-
-
-def load_audio(wav_path, normalize=True):  # -> numpy array
-    with wave.open(wav_path) as wav:
-        wav = np.frombuffer(wav.readframes(wav.getnframes()), dtype="int16")
-        wav = wav.astype("float")
-    if normalize:
-        return (wav - wav.mean()) / wav.std()
-    else:
-        return wav
-
-
-def spectrogram(wav, normalize=True):
-    D = librosa.stft(
-        wav, n_fft=n_fft, hop_length=hop_length, win_length=win_length, window=window
-    )
-
-    spec, phase = librosa.magphase(D)
-    spec = np.log1p(spec)
-    spec = torch.FloatTensor(spec)
-
-    if normalize:
-        spec = (spec - spec.mean()) / spec.std()
-
-    return spec
-
+dataPath = '/media/yangjinming/DATA/Dataset'
+cur_path = os.path.join(os.path.dirname(os.path.realpath(__file__)))#获取的是文件所在路径，不受终端所在影响
 
 class MASRDataset(Dataset):
     def __init__(self, index_path, labels_path):
-        with open(index_path) as f:
+        with open(os.path.join(cur_path,index_path)) as f:
             idx = f.readlines()
         idx = [x.strip().split(",", 1) for x in idx]
-        self.idx = idx
-        with open(labels_path) as f:
+        self.idx = idx#分成一个个路径和汉字的列表
+        with open(os.path.join(cur_path,labels_path)) as f:
             labels = json.load(f)
         self.labels = dict([(labels[i], i) for i in range(len(labels))])
         self.labels_str = labels
 
     def __getitem__(self, index):
         wav, transcript = self.idx[index]
-        wav = load_audio(wav)
-        spect = spectrogram(wav)
+        wav = feature.load_audio(os.path.join(dataPath,wav))
+        spect = feature.spectrogram(wav)
         transcript = list(filter(None, [self.labels.get(x) for x in transcript]))
-
         return spect, transcript
 
     def __len__(self):
@@ -94,4 +64,3 @@ class MASRDataLoader(DataLoader):
     def __init__(self, *args, **kwargs):
         super(MASRDataLoader, self).__init__(*args, **kwargs)
         self.collate_fn = _collate_fn
-

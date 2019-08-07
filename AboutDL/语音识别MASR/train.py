@@ -4,7 +4,6 @@ import data
 from models.conv import GatedConv
 from tqdm import tqdm
 from decoder import GreedyDecoder
-from warpctc_pytorch import CTCLoss
 import tensorboardX as tensorboard
 import torch.nn.functional as F
 import json
@@ -14,26 +13,22 @@ def train(
     model,
     epochs=1000,
     batch_size=64,
-    train_index_path="data_aishell/train-sort.manifest",
-    dev_index_path="data_aishell/dev.manifest",
-    labels_path="data_aishell/labels.json",
+    train_index_path="data/train.index",
+    dev_index_path="data/dev.index",
+    labels_path="data/labels.json",
     learning_rate=0.6,
     momentum=0.8,
     max_grad_norm=0.2,
     weight_decay=0,
 ):
     train_dataset = data.MASRDataset(train_index_path, labels_path)
-    batchs = (len(train_dataset) + batch_size - 1) // batch_size
     dev_dataset = data.MASRDataset(dev_index_path, labels_path)
-    train_dataloader = data.MASRDataLoader(
-        train_dataset, batch_size=batch_size, num_workers=8
-    )
-    train_dataloader_shuffle = data.MASRDataLoader(
-        train_dataset, batch_size=batch_size, num_workers=8, shuffle=True
-    )
-    dev_dataloader = data.MASRDataLoader(
-        dev_dataset, batch_size=batch_size, num_workers=8
-    )
+    batchs = (len(train_dataset) + batch_size - 1) // batch_size
+    
+    train_dataloader = data.MASRDataLoader(train_dataset, batch_size=batch_size, num_workers=8)
+    train_dataloader_shuffle = data.MASRDataLoader(train_dataset, batch_size=batch_size, num_workers=8, shuffle=True)
+    dev_dataloader = data.MASRDataLoader(dev_dataset, batch_size=batch_size, num_workers=8)
+
     parameters = model.parameters()
     optimizer = torch.optim.SGD(
         parameters,
@@ -42,7 +37,7 @@ def train(
         nesterov=True,
         weight_decay=weight_decay,
     )
-    ctcloss = CTCLoss(size_average=True)
+    ctcloss = nn.CTCLoss(reduction='mean')
     # lr_sched = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.985)
     writer = tensorboard.SummaryWriter()
     gstep = 0
@@ -65,11 +60,7 @@ def train(
             epoch_loss += loss.item()
             writer.add_scalar("loss/step", loss.item(), gstep)
             gstep += 1
-            print(
-                "[{}/{}][{}/{}]\tLoss = {}".format(
-                    epoch + 1, epochs, i, int(batchs), loss.item()
-                )
-            )
+            print("[{}/{}][{}/{}]\tLoss = {}".format(epoch + 1, epochs, i, int(batchs), loss.item()))
         epoch_loss = epoch_loss / batchs
         cer = eval(model, dev_dataloader)
         writer.add_scalar("loss/epoch", epoch_loss, epoch)
@@ -109,8 +100,9 @@ def eval(model, dataloader):
     return cer
 
 
+import os
 if __name__ == "__main__":
-    with open("data_aishell/labels.json") as f:
+    with open(os.path.join(data.cur_path,"data/labels.json")) as f:
         vocabulary = json.load(f)
         vocabulary = "".join(vocabulary)
     model = GatedConv(vocabulary)

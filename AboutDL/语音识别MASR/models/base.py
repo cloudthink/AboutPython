@@ -10,8 +10,12 @@ class MASRModel(nn.Module):
     @classmethod
     def load(cls, path):
         package = torch.load(path)
-        state_dict = package["state_dict"]
-        config = package["config"]
+        try:
+            state_dict = package["state_dict"]
+            config = package["config"]
+        except:
+            state_dict = package.state_dict()
+            config = package.config
         m = cls(**config)
         m.load_state_dict(state_dict)
         return m

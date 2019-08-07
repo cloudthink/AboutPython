@@ -76,9 +76,7 @@ class GreedyDecoder(Decoder):
     def __init__(self, labels, blank_index=0):
         super(GreedyDecoder, self).__init__(labels, blank_index)
 
-    def convert_to_strings(
-        self, sequences, sizes=None, remove_repetitions=False, return_offsets=False
-    ):
+    def convert_to_strings(self, sequences, sizes=None, remove_repetitions=False, return_offsets=False):
         """Given a list of numeric sequences, returns the corresponding strings"""
         strings = []
         offsets = [] if return_offsets else None

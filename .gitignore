@@ -10,4 +10,4 @@ AboutDL/语音识别ASRT/logs_lm/checkpoint
 AboutDL/语音识别ASRT/logs_*m/*/saved_model.pb
 AboutDL/语音识别ASRT/logs_*m/*/variables/variables.data-00000-of-00001
 AboutDL/语音识别ASRT/logs_*m/*/variables/variables.index
-AboutDL/语音识别MASR
+*events.out.*
